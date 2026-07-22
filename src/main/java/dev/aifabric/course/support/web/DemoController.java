@@ -39,6 +39,12 @@ public class DemoController {
         return evidenceService.indexAll();
     }
 
+    @PostMapping("/vectors/clear")
+    public CourseReadinessService.ReadinessResponse clearVectors() {
+        evidenceService.clear();
+        return readinessService.readiness();
+    }
+
     @GetMapping("/readiness")
     public CourseReadinessService.ReadinessResponse readiness() {
         return readinessService.readiness();

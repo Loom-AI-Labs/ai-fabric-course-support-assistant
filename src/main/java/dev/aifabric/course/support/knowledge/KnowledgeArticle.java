@@ -21,6 +21,7 @@ public class KnowledgeArticle {
 
     @Column(nullable = false)
     @AISearchable(weight = 2.0, required = true)
+    @AIContext(description = "Public evidence title")
     private String title;
 
     @Column(nullable = false, length = 8_000)

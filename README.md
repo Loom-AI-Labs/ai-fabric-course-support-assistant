@@ -9,22 +9,22 @@ privacy, and release verification. Each immutable `course-0.3.3-*` tag is a less
 
 ## Current Checkpoint
 
-This checkpoint adds the first real AI Fabric capability: support articles are projected through
-`@AICapable`, `@AISearchable`, and `@AIContext`, embedded locally with ONNX, and stored in Lucene.
-The source database and vector evidence remain separate lifecycles so learners can observe the
-difference between owning records and making approved fields retrievable.
+This checkpoint adds evidence-grounded generation after semantic retrieval. AI Fabric's
+`RAGProvider` retrieves and assembles approved context; the application then calls
+`AICoreService` for generation and validates the model's structured citation IDs against the
+retrieved evidence. Retrieval and generation remain independently visible.
 
 ## Requirements
 
 - Java 21
 - Maven 3.9+, or the included Maven wrapper
 
-## Run Semantic Search
+## Run Evidence-Grounded RAG
 
 ```bash
 ./mvnw clean verify
 ./scripts/download-onnx-model.sh
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+OPENAI_API_KEY=<set-locally> ./mvnw spring-boot:run -Dspring-boot.run.profiles=openai
 ```
 
 Then inspect the baseline:
@@ -32,18 +32,31 @@ Then inspect the baseline:
 ```bash
 curl -s -X POST http://localhost:8080/api/demo/reset
 curl -s -X POST http://localhost:8080/api/demo/seed
-curl -s "http://localhost:8080/api/knowledge/search?q=I+cannot+sign+in+after+too+many+attempts"
+curl -s -X POST http://localhost:8080/api/assistant/query \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"What should I do if failed sign-ins locked me out?"}'
 curl -s -X POST http://localhost:8080/api/demo/index
 curl -s http://localhost:8080/api/demo/readiness
-curl -s "http://localhost:8080/api/knowledge/search?q=I+cannot+sign+in+after+too+many+attempts"
+curl -s -X POST http://localhost:8080/api/assistant/query \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"What should I do if failed sign-ins locked me out?"}'
 ```
 
-The first search returns no evidence because ordinary database rows have not been indexed. The
-second returns `article-account-lockout` with public metadata. `internalNotes` is deliberately not
-annotated and never enters the vector content or public evidence response.
+The first assistant request returns `NO_EVIDENCE` and does not call the LLM because ordinary
+database rows have not been indexed. The second returns `ANSWERED` with
+`policy-account-lockout-01` as validated evidence. `internalNotes` is deliberately not annotated
+and never enters vector content, the generation prompt, or the public response.
 
-Tests use an explicitly test-only semantic fixture and the in-memory vector adapter. The `local`
-profile uses the real ONNX provider and Lucene; there is no runtime fixture or hidden fallback.
+The `openai` profile uses the Spring AI-backed OpenAI adapter for generation, ONNX for local
+embeddings, and Lucene for local vector search. Provider fallback is disabled. A retrieval failure
+returns `RETRIEVAL_FAILED`; a provider or structured-citation failure returns `GENERATION_FAILED`
+with HTTP 503 and no canned answer.
+
+`./mvnw clean verify` needs no API key. Tests use explicitly labelled, test-only embedding and
+generation providers and prove the same public contracts without pretending to be live AI.
+
+The `local` profile remains useful for retrieval-only exploration. It uses the real ONNX provider
+and Lucene with generation disabled. There is no runtime fixture or hidden fallback.
 
 AI Fabric `0.3.3` discovers an optional `com.huggingface.tokenizers` hook but does not package its
 implementation. The two small classes under that package adapt the hook to DJL's real Hugging Face

@@ -76,6 +76,10 @@
             <artifactId>ai-fabric-vector-lucene</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.github.loom-ai-labs</groupId>
+            <artifactId>ai-fabric-rag</artifactId>
+        </dependency>
+        <dependency>
             <groupId>ai.djl.huggingface</groupId>
             <artifactId>tokenizers</artifactId>
             <version>${djl.version}</version>

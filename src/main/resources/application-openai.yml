@@ -1,0 +1,29 @@
+ai:
+  providers:
+    llm-provider: openai
+    embedding-provider: onnx
+    enable-fallback: false
+    generation:
+      llm-provider: openai
+      model: ${OPENAI_MODEL:gpt-4o-mini}
+      temperature: 0.1
+      max-tokens: 600
+    openai:
+      enabled: true
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      model: ${OPENAI_MODEL:gpt-4o-mini}
+      timeout: ${OPENAI_TIMEOUT_SECONDS:30}
+    onnx:
+      model-path: ${AI_FABRIC_ONNX_MODEL_PATH:./models/embeddings/all-MiniLM-L6-v2.onnx}
+      tokenizer-path: ${AI_FABRIC_ONNX_TOKENIZER_PATH:./models/embeddings/tokenizer.json}
+  vector-db:
+    type: lucene
+    lucene:
+      index-path: ${AI_FABRIC_LUCENE_INDEX_PATH:./data/lucene-knowledge-384}
+  service:
+    features:
+      enable-generation: true
+      enable-embeddings: true
+      enable-search: true
+      enable-rag: true

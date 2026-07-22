@@ -124,6 +124,15 @@ public class CourseDataService {
                 COURSE_TENANT,
                 "PUBLISHED",
                 "Never store actual keys in an article."
+            ),
+            new KnowledgeArticle(
+                "policy-account-lockout-01",
+                "Account lockout recovery policy",
+                "After repeated failed sign-in attempts, wait fifteen minutes. Then use account recovery to verify the registered email and reset access.",
+                "authentication-policy",
+                COURSE_TENANT,
+                "PUBLISHED",
+                "Internal exception paths and fraud-review rules are staff-only."
             )
         );
     }

@@ -1,13 +1,13 @@
 ai:
   providers:
-    llm-provider: ""
+    llm-provider: course-test
     embedding-provider: course-test
     enable-fallback: false
   vector-db:
     type: memory
   service:
     features:
-      enable-generation: false
+      enable-generation: true
       enable-embeddings: true
       enable-search: true
-      enable-rag: false
+      enable-rag: true

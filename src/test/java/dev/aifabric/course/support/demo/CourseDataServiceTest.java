@@ -34,7 +34,7 @@ class CourseDataServiceTest {
     void seedCreatesTheDeterministicCourseDataset() {
         CourseDataService.DatasetSnapshot snapshot = dataService.seed();
 
-        assertThat(snapshot.articles()).isEqualTo(5);
+        assertThat(snapshot.articles()).isEqualTo(6);
         assertThat(snapshot.policies()).isEqualTo(2);
         assertThat(snapshot.accounts()).isEqualTo(1);
         assertThat(snapshot.tickets()).isEqualTo(1);

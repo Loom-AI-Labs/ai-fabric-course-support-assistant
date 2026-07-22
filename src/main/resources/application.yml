@@ -27,7 +27,14 @@ ai:
       enable-generation: false
       enable-embeddings: true
       enable-search: true
-      enable-rag: false
+      enable-rag: true
+  infrastructure:
+    rag:
+      enabled: true
+      default-limit: 5
+      default-threshold: 0.55
+      enable-hybrid-search: false
+      enable-contextual-search: false
   pii-detection:
     enabled: false
 

@@ -2,12 +2,20 @@ package dev.aifabric.course.support.testsupport;
 
 import ai.fabric.dto.AIEmbeddingRequest;
 import ai.fabric.dto.AIEmbeddingResponse;
+import ai.fabric.dto.AIGenerationRequest;
+import ai.fabric.dto.AIGenerationResponse;
 import ai.fabric.embedding.EmbeddingProvider;
+import ai.fabric.provider.AIProvider;
+import ai.fabric.provider.ProviderConfig;
+import ai.fabric.provider.ProviderStatus;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 
@@ -17,6 +25,112 @@ public class CourseTestAIConfiguration {
     @Bean
     EmbeddingProvider courseTestEmbeddingProvider() {
         return new CourseTestEmbeddingProvider();
+    }
+
+    @Bean
+    CourseTestGenerationProvider courseTestGenerationProvider() {
+        return new CourseTestGenerationProvider();
+    }
+
+    /**
+     * An explicitly test-only generation fixture. It never exists in a runtime application profile.
+     */
+    public static final class CourseTestGenerationProvider implements AIProvider {
+
+        private final AtomicInteger generationCalls = new AtomicInteger();
+        private final AtomicBoolean failNext = new AtomicBoolean();
+        private volatile String lastPrompt;
+        private volatile String response = """
+            {"answer":"Wait fifteen minutes, then use account recovery to verify your registered email and reset access.","citationIds":["policy-account-lockout-01"]}
+            """;
+
+        @Override
+        public String getProviderName() {
+            return "course-test";
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return true;
+        }
+
+        @Override
+        public AIGenerationResponse generateContent(AIGenerationRequest request) {
+            generationCalls.incrementAndGet();
+            lastPrompt = (request != null ? request.getSystemPrompt() : "") + "\n"
+                + (request != null ? request.getContext() : "") + "\n"
+                + (request != null ? request.getPrompt() : "");
+            if (failNext.getAndSet(false)) {
+                throw new IllegalStateException("deliberate test provider failure");
+            }
+            return AIGenerationResponse.builder()
+                .requestId("course-test-generation-request")
+                .entityId(request != null ? request.getEntityId() : null)
+                .entityType(request != null ? request.getEntityType() : null)
+                .generationType(request != null ? request.getGenerationType() : null)
+                .content(response)
+                .model("course-test-generation")
+                .tokensUsed(0)
+                .processingTimeMs(0L)
+                .generatedAt(LocalDateTime.now())
+                .status("SUCCESS")
+                .build();
+        }
+
+        @Override
+        public AIEmbeddingResponse generateEmbedding(AIEmbeddingRequest request) {
+            throw new UnsupportedOperationException("The test generation provider does not provide embeddings");
+        }
+
+        @Override
+        public ProviderStatus getStatus() {
+            return ProviderStatus.builder()
+                .providerName(getProviderName())
+                .available(true)
+                .healthy(true)
+                .successRate(1.0)
+                .lastUpdated(LocalDateTime.now())
+                .details("explicitly test-only generation fixture")
+                .build();
+        }
+
+        @Override
+        public ProviderConfig getConfig() {
+            return ProviderConfig.builder()
+                .providerName(getProviderName())
+                .enabled(true)
+                .apiKey("test-only")
+                .baseUrl("test://course-generation")
+                .defaultModel("course-test-generation")
+                .timeoutSeconds(1)
+                .maxRetries(0)
+                .build();
+        }
+
+        public int generationCalls() {
+            return generationCalls.get();
+        }
+
+        public String lastPrompt() {
+            return lastPrompt;
+        }
+
+        public void failNext() {
+            failNext.set(true);
+        }
+
+        public void response(String response) {
+            this.response = response;
+        }
+
+        public void reset() {
+            generationCalls.set(0);
+            failNext.set(false);
+            lastPrompt = null;
+            response = """
+                {"answer":"Wait fifteen minutes, then use account recovery to verify your registered email and reset access.","citationIds":["policy-account-lockout-01"]}
+                """;
+        }
     }
 
     /**
