@@ -1,0 +1,17 @@
+### Reset source records and vectors
+POST http://localhost:8080/api/demo/reset
+
+### Seed ordinary application records
+POST http://localhost:8080/api/demo/seed
+
+### No indexed evidence exists yet
+GET http://localhost:8080/api/knowledge/search?q=I%20cannot%20sign%20in%20after%20too%20many%20attempts
+
+### Project and index the articles with AI Fabric
+POST http://localhost:8080/api/demo/index
+
+### Search by meaning rather than an exact title
+GET http://localhost:8080/api/knowledge/search?q=I%20cannot%20sign%20in%20after%20too%20many%20attempts
+
+### Verify source and vector counts separately
+GET http://localhost:8080/api/demo/readiness

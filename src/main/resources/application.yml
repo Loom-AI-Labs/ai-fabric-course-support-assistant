@@ -16,6 +16,21 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+ai:
+  enabled: true
+  indexing:
+    enabled: false
+  config:
+    default-file: ai-entity-config.yml
+  service:
+    features:
+      enable-generation: false
+      enable-embeddings: true
+      enable-search: true
+      enable-rag: false
+  pii-detection:
+    enabled: false
+
 management:
   endpoints:
     web:

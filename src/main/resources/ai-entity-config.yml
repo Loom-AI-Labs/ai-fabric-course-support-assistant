@@ -1,0 +1,22 @@
+ai-entities:
+  knowledge-article:
+    entity-type: "knowledge-article"
+    features: ["embedding", "search"]
+    auto-process: true
+    auto-embedding: true
+    indexable: true
+    enable-search: true
+    searchable-fields:
+      - name: "title"
+        weight: 2.0
+      - name: "body"
+        weight: 1.0
+    metadata-fields:
+      - name: "id"
+        type: "string"
+      - name: "category"
+        type: "string"
+      - name: "tenantId"
+        type: "string"
+      - name: "status"
+        type: "string"

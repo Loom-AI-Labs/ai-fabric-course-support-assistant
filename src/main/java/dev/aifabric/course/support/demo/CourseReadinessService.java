@@ -1,5 +1,7 @@
 package dev.aifabric.course.support.demo;
 
+import ai.fabric.rag.VectorDatabaseService;
+import dev.aifabric.course.support.knowledge.KnowledgeArticle;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,15 +13,18 @@ public class CourseReadinessService {
 
     private final CourseDataService dataService;
     private final Environment environment;
+    private final VectorDatabaseService vectorDatabaseService;
 
-    public CourseReadinessService(CourseDataService dataService, Environment environment) {
+    public CourseReadinessService(CourseDataService dataService, Environment environment,
+                                  VectorDatabaseService vectorDatabaseService) {
         this.dataService = dataService;
         this.environment = environment;
+        this.vectorDatabaseService = vectorDatabaseService;
     }
 
     public ReadinessResponse readiness() {
         Map<String, Boolean> capabilities = new LinkedHashMap<>();
-        capabilities.put("semanticSearch", false);
+        capabilities.put("semanticSearch", true);
         capabilities.put("rag", false);
         capabilities.put("governedActions", false);
         capabilities.put("conversationMemory", false);
@@ -27,9 +32,9 @@ public class CourseReadinessService {
         capabilities.put("piiProtection", false);
 
         return new ReadinessResponse(
-            "course-0.3.3-00-starter",
+            "course-0.3.3-01-first-search",
             dataService.snapshot(),
-            0,
+            vectorDatabaseService.getVectorCountByEntityType(KnowledgeArticle.ENTITY_TYPE),
             List.of(environment.getActiveProfiles()),
             Map.copyOf(capabilities)
         );

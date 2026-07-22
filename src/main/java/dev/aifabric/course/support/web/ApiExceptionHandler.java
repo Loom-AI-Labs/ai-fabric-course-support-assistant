@@ -1,6 +1,8 @@
 package dev.aifabric.course.support.web;
 
 import dev.aifabric.course.support.common.FeatureUnavailableException;
+import dev.aifabric.course.support.knowledge.ArticleNotFoundException;
+import dev.aifabric.course.support.knowledge.EvidenceOperationException;
 import java.net.URI;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -16,6 +18,18 @@ public class ApiExceptionHandler {
         problem.setTitle("Course capability not implemented");
         problem.setType(URI.create("https://ai-fabric.dev/problems/course-capability-not-implemented"));
         problem.setProperty("capability", exception.getCapability());
+        return problem;
+    }
+
+    @ExceptionHandler(ArticleNotFoundException.class)
+    ProblemDetail handleNotFound(ArticleNotFoundException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(EvidenceOperationException.class)
+    ProblemDetail handleEvidenceFailure(EvidenceOperationException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+        problem.setTitle("AI evidence operation failed");
         return problem;
     }
 }

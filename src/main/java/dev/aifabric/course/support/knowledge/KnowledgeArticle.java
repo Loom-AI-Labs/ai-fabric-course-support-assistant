@@ -1,5 +1,8 @@
 package dev.aifabric.course.support.knowledge;
 
+import ai.fabric.annotation.AICapable;
+import ai.fabric.annotation.AIContext;
+import ai.fabric.annotation.AISearchable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -7,24 +10,33 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "knowledge_article")
+@AICapable(entityType = KnowledgeArticle.ENTITY_TYPE)
 public class KnowledgeArticle {
 
+    public static final String ENTITY_TYPE = "knowledge-article";
+
     @Id
+    @AIContext(dataType = "id", priority = 10)
     private String id;
 
     @Column(nullable = false)
+    @AISearchable(weight = 2.0, required = true)
     private String title;
 
     @Column(nullable = false, length = 8_000)
+    @AISearchable(maxLength = 8_000, required = true)
     private String body;
 
     @Column(nullable = false)
+    @AIContext(description = "Public support category")
     private String category;
 
     @Column(nullable = false)
+    @AIContext(dataType = "id", description = "Application-owned tenant identifier")
     private String tenantId;
 
     @Column(nullable = false)
+    @AIContext(dataType = "enum")
     private String status;
 
     @Column(length = 2_000)
