@@ -49,7 +49,8 @@ public class AssistantController {
     @PostMapping("/orchestrate")
     public SupportOrchestrationResponse orchestrate(@Valid @RequestBody AssistantQueryRequest request) {
         return orchestrationService.orchestrate(
-            request.message(), request.conversationId(), request.attachments(), principalProvider.currentPrincipal());
+            request.message(), request.conversationId(), request.attachments(), request.mode(), request.position(),
+            principalProvider.currentPrincipal());
     }
 
     @GetMapping("/actions")
@@ -83,7 +84,11 @@ public class AssistantController {
         @Size(max = 128)
         @Pattern(regexp = "[A-Za-z0-9._:-]+", message = "conversationId contains unsupported characters")
         String conversationId,
-        @Size(max = 8) List<@Valid OrchestrationAttachment> attachments
+        @Size(max = 8) List<@Valid OrchestrationAttachment> attachments,
+        @Size(max = 64) @Pattern(regexp = "[A-Za-z0-9_-]+", message = "mode contains unsupported characters")
+        String mode,
+        @Size(max = 64) @Pattern(regexp = "[A-Za-z0-9_-]+", message = "position contains unsupported characters")
+        String position
     ) {
     }
 }

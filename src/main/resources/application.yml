@@ -75,12 +75,16 @@ ai:
     max-pending-action-stack-depth: 4
   orchestration:
     action-param-provenance-mode: WARN
-    default-mode: support_assistant
+    default-mode: support_resolver
     strict-mode-routing: true
+    strict-position-routing: true
+    position-routing:
+      knowledge: support_assistant
+      ticket: support_resolver
     modes:
       support_assistant:
-        actions-enabled: true
-        actions-preferred: true
+        actions-enabled: false
+        actions-preferred: false
         retrieval-enabled: true
         information-mode: DETERMINISTIC_RAG_GENERATE
         suggestions-enabled: false
@@ -91,6 +95,21 @@ ai:
           max-documents-returned-to-client: 5
           max-documents-used-for-context: 5
           max-context-chars: 4000
+          retrieval-vector-spaces-allowlist:
+            - knowledge-article
+      support_resolver:
+        actions-enabled: true
+        actions-preferred: true
+        retrieval-enabled: true
+        information-mode: DETERMINISTIC_RAG_GENERATE
+        suggestions-enabled: false
+        rag:
+          fanout-enabled: false
+          top-k-per-space: 3
+          similarity-threshold: 0.55
+          max-documents-returned-to-client: 3
+          max-documents-used-for-context: 3
+          max-context-chars: 3000
           retrieval-vector-spaces-allowlist:
             - knowledge-article
 

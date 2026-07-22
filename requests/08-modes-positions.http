@@ -1,0 +1,59 @@
+@baseUrl = http://localhost:8080
+@token = course-alex-local-token
+
+### Retrieval-only knowledge position
+POST {{baseUrl}}/api/assistant/orchestrate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "message": "How do I recover a locked account?",
+  "conversationId": "prod-02-knowledge",
+  "position": "knowledge"
+}
+
+### Governed ticket resolver position
+POST {{baseUrl}}/api/assistant/orchestrate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "message": "Create a ticket about missing recovery emails",
+  "conversationId": "prod-02-ticket",
+  "position": "ticket"
+}
+
+### Explicit approved mode wins over position mapping
+POST {{baseUrl}}/api/assistant/orchestrate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "message": "Create a ticket about missing recovery emails",
+  "conversationId": "prod-02-explicit",
+  "position": "ticket",
+  "mode": "support_assistant"
+}
+
+### Unknown mode remains a visible strict-routing failure
+POST {{baseUrl}}/api/assistant/orchestrate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "message": "Create a ticket",
+  "conversationId": "prod-02-unknown-mode",
+  "position": "ticket",
+  "mode": "untrusted_admin"
+}
+
+### Unknown position is rejected by the application resolver
+POST {{baseUrl}}/api/assistant/orchestrate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "message": "Create a ticket",
+  "conversationId": "prod-02-unknown-position",
+  "position": "admin-console"
+}

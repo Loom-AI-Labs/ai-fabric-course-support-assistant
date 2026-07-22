@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CourseReadinessService {
 
-    public static final String CHECKPOINT = "course-0.3.3-p01-provider-routing";
+    public static final String CHECKPOINT = "course-0.3.3-p02-modes-positions";
 
     private final CourseDataService dataService;
     private final Environment environment;
@@ -69,6 +69,7 @@ public class CourseReadinessService {
             && piiProperties.getDetectionDirection() == PIIDetectionProperties.PIIDetectionDirection.INPUT_OUTPUT
             && !piiProperties.isExposeOriginalPayloadInResult()
             && !piiProperties.isStoreEncryptedOriginal());
+        capabilities.put("modeRouting", true);
 
         return new ReadinessResponse(
             CHECKPOINT,

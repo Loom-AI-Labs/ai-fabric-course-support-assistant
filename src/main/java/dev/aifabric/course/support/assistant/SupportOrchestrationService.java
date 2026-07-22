@@ -17,9 +17,11 @@ import org.springframework.util.StringUtils;
 public class SupportOrchestrationService {
 
     private final RAGOrchestrator orchestrator;
+    private final SupportModeResolver modeResolver;
 
-    public SupportOrchestrationService(RAGOrchestrator orchestrator) {
+    public SupportOrchestrationService(RAGOrchestrator orchestrator, SupportModeResolver modeResolver) {
         this.orchestrator = orchestrator;
+        this.modeResolver = modeResolver;
     }
 
     public SupportOrchestrationResponse orchestrate(String message, String requestedConversationId,
@@ -30,32 +32,43 @@ public class SupportOrchestrationService {
     public SupportOrchestrationResponse orchestrate(String message, String requestedConversationId,
                                                     List<OrchestrationAttachment> attachments,
                                                     CoursePrincipal principal) {
-        return orchestrate(message, requestedConversationId, attachments, principal, false);
+        return orchestrate(message, requestedConversationId, attachments, null, null, principal, false);
+    }
+
+    public SupportOrchestrationResponse orchestrate(String message, String requestedConversationId,
+                                                     List<OrchestrationAttachment> attachments,
+                                                     String requestedMode, String requestedPosition,
+                                                     CoursePrincipal principal) {
+        return orchestrate(message, requestedConversationId, attachments,
+            requestedMode, requestedPosition, principal, false);
     }
 
     public SupportOrchestrationResponse orchestrateTransient(String message, String requestedConversationId,
                                                              CoursePrincipal principal) {
-        return orchestrate(message, requestedConversationId, List.of(), principal, true);
+        return orchestrate(message, requestedConversationId, List.of(), null, null, principal, true);
     }
 
     private SupportOrchestrationResponse orchestrate(String message, String requestedConversationId,
                                                      List<OrchestrationAttachment> attachments,
+                                                     String requestedMode, String requestedPosition,
                                                      CoursePrincipal principal,
                                                      boolean neverPersist) {
         String conversationId = StringUtils.hasText(requestedConversationId)
             ? requestedConversationId.trim()
             : "course-conversation-" + UUID.randomUUID();
-        OrchestrationContext context = context(conversationId, attachments, principal, neverPersist);
+        SupportModeResolver.ResolvedRouting routing = modeResolver.resolve(requestedMode, requestedPosition);
+        OrchestrationContext context = context(conversationId, attachments, routing, principal, neverPersist);
         OrchestrationResult result = orchestrator.orchestrate(message, context);
         return new SupportOrchestrationResponse(conversationId, result);
     }
 
     private OrchestrationContext context(String conversationId, List<OrchestrationAttachment> attachments,
+                                         SupportModeResolver.ResolvedRouting routing,
                                          CoursePrincipal principal, boolean neverPersist) {
         OrchestrationContext.OrchestrationContextBuilder builder = OrchestrationContext.builder()
             .conversationId(conversationId)
-            .position("support")
-            .mode("support_assistant")
+            .position(routing.position())
+            .mode(routing.mode())
             .attachments(attachments != null ? List.copyOf(attachments) : List.of());
 
         if (principal != null && principal.authenticated()) {
@@ -67,6 +80,7 @@ public class SupportOrchestrationService {
             metadata.put(OrchestrationContextMetadataKeys.AUTH_MODE, "COURSE_DEMO_PRINCIPAL");
             metadata.put(OrchestrationContextMetadataKeys.CALLER_TYPE, "COURSE_API");
             metadata.put("courseRoles", principal.roles());
+            metadata.put("courseModeSource", routing.source());
             if (neverPersist) {
                 metadata.put(OrchestrationContextMetadataKeys.QUERY_PERSISTENCE_MODE, "NEVER_PERSIST");
             }

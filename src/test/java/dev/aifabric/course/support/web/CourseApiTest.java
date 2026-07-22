@@ -53,7 +53,7 @@ class CourseApiTest {
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p01-provider-routing"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p02-modes-positions"))
             .andExpect(jsonPath("$.sourceRecords.articles").value(9))
             .andExpect(jsonPath("$.indexedVectors").value(0))
             .andExpect(jsonPath("$.capabilities.semanticSearch").value(true))
@@ -94,7 +94,7 @@ class CourseApiTest {
             .andExpect(jsonPath("$.service").value("ai-fabric-course-support-assistant"))
             .andExpect(jsonPath("$.version").isNotEmpty())
             .andExpect(jsonPath("$.aiFabricVersion").value("0.3.3"))
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p01-provider-routing"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p02-modes-positions"))
             .andExpect(jsonPath("$.provider.mode").value("deterministic-test"))
             .andExpect(jsonPath("$.provider.orchestration").value("course-orchestration-test"))
             .andExpect(jsonPath("$.provider.orchestrationModel").value("course-test-orchestration"))

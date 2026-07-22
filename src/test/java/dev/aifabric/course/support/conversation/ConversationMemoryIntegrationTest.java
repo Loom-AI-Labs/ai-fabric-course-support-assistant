@@ -108,7 +108,7 @@ class ConversationMemoryIntegrationTest {
 
         assertThat(Arrays.stream(AssistantQueryRequest.class.getRecordComponents())
             .map(component -> component.getName()))
-            .containsExactly("message", "conversationId", "attachments")
+            .containsExactly("message", "conversationId", "attachments", "mode", "position")
             .doesNotContain("historyMessages", "pendingAction", "actionDraft", "ownerId", "tenantId");
     }
 

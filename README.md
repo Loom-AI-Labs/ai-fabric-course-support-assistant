@@ -168,6 +168,7 @@ tokenizer. They contain no ranking logic and do not replace AI Fabric's ONNX inf
 | `course-0.3.3-05-security` | Tenant and privacy boundaries |
 | `course-0.3.3-06-tested-solution` | Complete release evidence |
 | `course-0.3.3-p01-provider-routing` | Purpose-specific provider and model routing |
+| `course-0.3.3-p02-modes-positions` | Application position mapping and server-owned orchestration modes |
 
 Do not move an existing checkpoint tag. Course corrections receive a new course patch version.
 
