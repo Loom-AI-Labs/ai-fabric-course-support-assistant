@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CourseReadinessService {
 
-    public static final String CHECKPOINT = "course-0.3.3-p04-migration-backfill";
+    public static final String CHECKPOINT = "course-0.3.3-p05-live-data-sync";
 
     private final CourseDataService dataService;
     private final Environment environment;
@@ -72,6 +72,7 @@ public class CourseReadinessService {
         capabilities.put("modeRouting", true);
         capabilities.put("promptOverlays", true);
         capabilities.put("migrationBackfill", true);
+        capabilities.put("liveDataSync", true);
 
         return new ReadinessResponse(
             CHECKPOINT,

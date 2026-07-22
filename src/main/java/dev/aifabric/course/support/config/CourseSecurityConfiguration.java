@@ -25,6 +25,7 @@ public class CourseSecurityConfiguration {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/actuator/health", "/actuator/info", "/api/demo/**").permitAll()
+                .requestMatchers("/api/internal/ai-data-sync/**").denyAll()
                 .anyRequest().authenticated())
             .exceptionHandling(errors -> errors
                 .authenticationEntryPoint((request, response, exception) ->

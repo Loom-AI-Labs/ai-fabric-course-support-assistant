@@ -10,12 +10,13 @@ tag is a lesson checkpoint.
 
 ## Current Checkpoint
 
-The fourth Production checkpoint keeps the complete Core slice and adds a real initial backfill from
-application-owned JPA rows into AI Fabric's durable indexing queue. The app binds the migration
-repository explicitly, exposes an admin-scoped job API, supports filters and bounded batches, and
-reports migration progress separately from queue and vector readiness. Deterministic tests cover
-pause, resume, cancel, invalid transitions, tenant-safe retrieval, private-field exclusion, and an
-idempotent rerun. The packaged gate proves the same flow with real ONNX embeddings and Lucene.
+The fifth Production checkpoint keeps the initial migration and adds trusted live synchronization
+for later article creates, updates, and deletes. The application API derives identity, tenant,
+scopes, vector space, and projection from server-owned state before invoking AI Fabric Data Sync.
+The raw framework DTO endpoint is denied externally, internal bypass remains disabled, and source
+transactions fail when evidence synchronization fails. Tests prove stable update identity, stale-
+vector deletion, access denial, invalid-content rollback, batch limits, and visible partial batch
+failure. The packaged gate repeats the lifecycle with real ONNX embeddings and Lucene.
 
 ## Requirements
 
@@ -64,6 +65,16 @@ curl -s -X POST http://localhost:8080/api/admin/migrations/knowledge-articles \
   -H "Authorization: Bearer $COURSE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"batchSize":3,"rateLimit":0,"reindexExisting":false}'
+curl -s -X POST http://localhost:8080/api/knowledge/articles \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"article-live-sync","title":"Enroll a passkey","body":"Register a passkey in Security Settings before removing the password.","category":"authentication"}'
+curl -s -X PUT http://localhost:8080/api/knowledge/articles/article-live-sync \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Replace a password with a security key","body":"Register the hardware security key, verify it, then revoke the previous login method."}'
+curl -s -X DELETE http://localhost:8080/api/knowledge/articles/article-live-sync \
+  -H "Authorization: Bearer $COURSE_TOKEN"
 curl -s http://localhost:8080/api/demo/readiness
 curl -s http://localhost:8080/api/demo/health
 curl -s -X POST http://localhost:8080/api/assistant/query \
@@ -114,6 +125,14 @@ AI Fabric `0.3.3` exposes source rows processed and failed, but not an exact per
 The course API says so explicitly instead of deriving a misleading number. Idempotency is proved by
 stable vector identity and an unchanged queue-entry count after a rerun with
 `reindexExisting=false`.
+
+After that initial backfill, application-owned create/update/delete endpoints use
+`ai-fabric-data-sync`. The browser cannot supply `tenantId`, verified auth context, or vector space;
+the backend projects those values from `CoursePrincipal` and the persisted article. The low-level
+`/api/internal/ai-data-sync/**` route is denied by Spring Security. The optional platform bypass
+remains false. A failed upsert rolls back the source transaction, while reconciliation reports
+per-operation partial failures so an operator can repair derived evidence without changing source
+truth.
 
 The `openai` profile uses the Spring AI-backed OpenAI adapter with independently configurable
 orchestration and generation models, ONNX for local embeddings, and Lucene for local vector search.
@@ -178,6 +197,7 @@ tokenizer. They contain no ranking logic and do not replace AI Fabric's ONNX inf
 | `course-0.3.3-p02-modes-positions` | Application position mapping and server-owned orchestration modes |
 | `course-0.3.3-p03-prompt-overlays` | Application prompt overlays, curated fallback, and safe diagnostics |
 | `course-0.3.3-p04-migration-backfill` | Admin-scoped migration, durable indexing, readiness, and idempotent backfill |
+| `course-0.3.3-p05-live-data-sync` | Trusted create/update/delete synchronization, stable identity, and visible batch failure |
 
 Do not move an existing checkpoint tag. Course corrections receive a new course patch version.
 
@@ -195,6 +215,7 @@ confirmation state, and provider integration as those capabilities are introduce
 - `release-evidence.md` maps each release claim to executable proof.
 - `src/main/resources/prompts/` contains the narrow, tested course-support prompt overlay.
 - `requests/production-04-migration-backfill.http` exercises the migration lifecycle.
+- `requests/production-05-live-data-sync.http` exercises the trusted incremental sync lifecycle.
 - `scripts/reset-course.sh` restores the deterministic fixture state.
 - `scripts/smoke-packaged.sh` proves the packaged ONNX/Lucene application over HTTP.
 - `.github/workflows/verify.yml` runs both gates and retains their reports.

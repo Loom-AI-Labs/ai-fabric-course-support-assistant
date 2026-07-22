@@ -144,6 +144,81 @@ jq -e --argjson completed "${completed_before_rerun}" \
     and .completedQueueEntries == $completed' \
   "${REPORT_DIR}/migration-rerun.json" >/dev/null || fail "migration rerun was not idempotent"
 
+unauthorized_sync_status="$(curl --silent --show-error --output "${REPORT_DIR}/sync-unauthorized.json" \
+  --write-out '%{http_code}' -X POST "${BASE_URL}/api/knowledge/articles" \
+  -H 'Authorization: Bearer course-riley-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"article-riley-forbidden","title":"Forbidden sync","body":"This row must not be created.","category":"security"}')"
+raw_sync_status="$(curl --silent --show-error --output "${REPORT_DIR}/sync-raw-endpoint.json" \
+  --write-out '%{http_code}' -X POST "${BASE_URL}/api/internal/ai-data-sync/upsert" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"vectorSpace":"unknown-space","id":"forged","content":"forged","trace":{"authContext":{"subjectId":"customer-alex"}}}')"
+[[ "${unauthorized_sync_status}" == "403" ]] || fail "unauthorized application sync did not return 403"
+case "${raw_sync_status}" in
+  401|403|404) ;;
+  *) fail "raw framework data-sync endpoint was externally reachable (status=${raw_sync_status})" ;;
+esac
+
+curl --fail --silent --show-error -X POST "${BASE_URL}/api/knowledge/articles" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"article-live-sync","title":"Enroll a passkey","body":"Register a passkey in Security Settings before removing the password.","category":"authentication"}' \
+  >"${REPORT_DIR}/sync-create.json" || fail "trusted article create sync failed"
+jq -e '.article.id == "article-live-sync" and .sync.success == true
+  and .sync.operation == "UPSERT" and .sync.vectorSpace == "knowledge-article"
+  and .sync.id == "article-live-sync"' \
+  "${REPORT_DIR}/sync-create.json" >/dev/null || fail "create sync response was incomplete"
+
+curl --fail --silent --show-error --get "${BASE_URL}/api/knowledge/search" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  --data-urlencode 'q=How do I register a passkey?' \
+  >"${REPORT_DIR}/sync-create-search.json" || fail "created evidence was not searchable"
+jq -e '[.evidence[] | select(.evidenceId == "article-live-sync")] | length == 1' \
+  "${REPORT_DIR}/sync-create-search.json" >/dev/null || fail "created vector was not retrieved"
+
+curl --fail --silent --show-error -X PUT "${BASE_URL}/api/knowledge/articles/article-live-sync" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Replace a password with a security key","body":"Register the hardware security key, verify it, then revoke the previous login method."}' \
+  >"${REPORT_DIR}/sync-update.json" || fail "trusted article update sync failed"
+jq -e '.article.id == "article-live-sync" and .sync.success == true
+  and .sync.operation == "UPSERT" and .sync.id == "article-live-sync"
+  and .sync.sourceVersion == "1"' \
+  "${REPORT_DIR}/sync-update.json" >/dev/null || fail "update did not preserve stable evidence identity"
+
+curl --fail --silent --show-error --get "${BASE_URL}/api/knowledge/search" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  --data-urlencode 'q=How do I revoke the previous security key login?' \
+  >"${REPORT_DIR}/sync-update-search.json" || fail "updated evidence search failed"
+jq -e '[.evidence[] | select(.evidenceId == "article-live-sync"
+  and (.content | contains("hardware security key"))
+  and ((.content | contains("removing the password")) | not))] | length == 1' \
+  "${REPORT_DIR}/sync-update-search.json" >/dev/null || fail "search returned stale evidence after update"
+
+batch_limit_status="$(curl --silent --show-error --output "${REPORT_DIR}/sync-batch-limit.json" \
+  --write-out '%{http_code}' -X POST "${BASE_URL}/api/knowledge/sync/reconcile" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"articleIds":["article-account-lockout","article-two-factor","article-api-key"]}')"
+[[ "${batch_limit_status}" == "400" ]] || fail "oversized sync batch did not return 400"
+jq -e '.errorCode == "BATCH_TOO_LARGE" and .succeededOperations == 0
+  and .failedOperations == 3' \
+  "${REPORT_DIR}/sync-batch-limit.json" >/dev/null || fail "batch limit failure was not explicit"
+
+curl --fail --silent --show-error -X DELETE "${BASE_URL}/api/knowledge/articles/article-live-sync" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  >"${REPORT_DIR}/sync-delete.json" || fail "trusted article delete sync failed"
+jq -e '.success == true and .operation == "DELETE" and .id == "article-live-sync"' \
+  "${REPORT_DIR}/sync-delete.json" >/dev/null || fail "delete sync response was incomplete"
+
+curl --fail --silent --show-error --get "${BASE_URL}/api/knowledge/search" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  --data-urlencode 'q=How do I revoke the previous security key login?' \
+  >"${REPORT_DIR}/sync-delete-search.json" || fail "post-delete evidence search failed"
+jq -e 'all(.evidence[]; .evidenceId != "article-live-sync")' \
+  "${REPORT_DIR}/sync-delete-search.json" >/dev/null || fail "deleted evidence remained retrievable"
+
 curl --fail --silent --show-error --get "${BASE_URL}/api/knowledge/search" \
   -H 'Authorization: Bearer course-alex-local-token' \
   -H 'X-Tenant-Id: tenant-red' \
@@ -186,17 +261,18 @@ jq -e '.candidateVersions == ["v1-course-support", "v1-support", "v1"]
   and .resolvedVersions["support-answer"] == "v1-course-support"
   and .resolvedVersions["action-selector"] == "v1"' \
   "${REPORT_DIR}/prompt-posture.json" >/dev/null || fail "prompt overlay resolution is incomplete"
-jq -e '.checkpoint == "course-0.3.3-p04-migration-backfill"
+jq -e '.checkpoint == "course-0.3.3-p05-live-data-sync"
   and .indexedVectors == 9
   and .indexedMessageVectors == 1
   and .capabilities.tenantSecurity == true
   and .capabilities.piiProtection == true
   and .capabilities.modeRouting == true
   and .capabilities.promptOverlays == true
-  and .capabilities.migrationBackfill == true' \
+  and .capabilities.migrationBackfill == true
+  and .capabilities.liveDataSync == true' \
   "${REPORT_DIR}/readiness.json" >/dev/null || fail "readiness contract is incomplete"
 jq -e '.status == "UP"
-  and .checkpoint == "course-0.3.3-p04-migration-backfill"
+  and .checkpoint == "course-0.3.3-p05-live-data-sync"
   and .version != "unknown"
   and .aiFabricVersion == "0.3.3"
   and .commit != "unknown"
@@ -217,24 +293,40 @@ fi
 
 jq -n \
   --arg status PASS \
-  --arg checkpoint course-0.3.3-p04-migration-backfill \
+  --arg checkpoint course-0.3.3-p05-live-data-sync \
   --arg profile local \
   --arg unauthenticatedStatus "${unauthenticated_status}" \
   --arg invalidCredentialStatus "${invalid_status}" \
+  --arg unauthorizedSyncStatus "${unauthorized_sync_status}" \
+  --arg rawSyncStatus "${raw_sync_status}" \
+  --arg batchLimitStatus "${batch_limit_status}" \
   --slurpfile health "${REPORT_DIR}/deployment-health.json" \
   --slurpfile readiness "${REPORT_DIR}/readiness.json" \
   --slurpfile migration "${REPORT_DIR}/migration-progress.json" \
   --slurpfile migrationRerun "${REPORT_DIR}/migration-rerun.json" \
+  --slurpfile syncCreate "${REPORT_DIR}/sync-create.json" \
+  --slurpfile syncUpdate "${REPORT_DIR}/sync-update.json" \
+  --slurpfile syncDelete "${REPORT_DIR}/sync-delete.json" \
+  --slurpfile syncBatchLimit "${REPORT_DIR}/sync-batch-limit.json" \
   '{
     status: $status,
     checkpoint: $checkpoint,
     profile: $profile,
     unauthenticatedStatus: $unauthenticatedStatus,
     invalidCredentialStatus: $invalidCredentialStatus,
+    unauthorizedSyncStatus: $unauthorizedSyncStatus,
+    rawSyncStatus: $rawSyncStatus,
+    batchLimitStatus: $batchLimitStatus,
     deployment: $health[0],
     readiness: $readiness[0],
     migration: $migration[0],
-    migrationRerun: $migrationRerun[0]
+    migrationRerun: $migrationRerun[0],
+    liveDataSync: {
+      create: $syncCreate[0],
+      update: $syncUpdate[0],
+      delete: $syncDelete[0],
+      batchLimit: $syncBatchLimit[0]
+    }
   }' >"${REPORT_DIR}/packaged-smoke-summary.json"
 
 printf 'Packaged smoke PASS. Evidence: %s\n' "${REPORT_DIR}/packaged-smoke-summary.json"

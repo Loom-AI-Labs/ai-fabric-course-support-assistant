@@ -6,6 +6,7 @@ import dev.aifabric.course.support.identity.CourseAccessDeniedException;
 import dev.aifabric.course.support.knowledge.ArticleNotFoundException;
 import dev.aifabric.course.support.knowledge.EvidenceBoundaryException;
 import dev.aifabric.course.support.knowledge.EvidenceOperationException;
+import dev.aifabric.course.support.knowledge.DataSyncOperationException;
 import dev.aifabric.course.support.privacy.PrivacyBoundaryException;
 import dev.aifabric.course.support.assistant.UnsupportedSupportPositionException;
 import dev.aifabric.course.support.migration.MigrationJobNotFoundException;
@@ -27,6 +28,21 @@ public class ApiExceptionHandler {
     ProblemDetail handleEvidenceFailure(EvidenceOperationException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
         problem.setTitle("AI evidence operation failed");
+        return problem;
+    }
+
+    @ExceptionHandler(DataSyncOperationException.class)
+    ProblemDetail handleDataSyncFailure(DataSyncOperationException exception) {
+        HttpStatus status = switch (String.valueOf(exception.getErrorCode())) {
+            case "ACCESS_DENIED" -> HttpStatus.FORBIDDEN;
+            case "INVALID_REQUEST", "BATCH_TOO_LARGE", "VECTOR_SPACE_NOT_FOUND",
+                 "VECTOR_SPACE_NOT_INDEXABLE" -> HttpStatus.BAD_REQUEST;
+            case "SOURCE_CONFLICT" -> HttpStatus.CONFLICT;
+            default -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, exception.getMessage());
+        problem.setTitle("AI evidence synchronization failed");
+        problem.setProperty("errorCode", exception.getErrorCode());
         return problem;
     }
 

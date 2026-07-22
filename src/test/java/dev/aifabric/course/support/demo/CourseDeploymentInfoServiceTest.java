@@ -50,7 +50,7 @@ class CourseDeploymentInfoServiceTest {
         assertThat(health.branch()).isEqualTo("main");
         assertThat(health.builtAt()).isEqualTo("2026-07-22T12:00:00Z");
         assertThat(health.activeProfiles()).containsExactly("openai");
-        assertThat(health.checkpoint()).isEqualTo("course-0.3.3-p04-migration-backfill");
+        assertThat(health.checkpoint()).isEqualTo("course-0.3.3-p05-live-data-sync");
         assertThat(health.provider().mode()).isEqualTo("live-openai");
         assertThat(health.provider().generationEnabled()).isTrue();
         assertThat(health.provider().orchestration()).isEqualTo("openai");

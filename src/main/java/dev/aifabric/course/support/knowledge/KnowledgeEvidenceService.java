@@ -12,12 +12,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.aifabric.course.support.identity.CourseAuthorizationService;
 import dev.aifabric.course.support.identity.CoursePrincipal;
-import jakarta.validation.constraints.NotBlank;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class KnowledgeEvidenceService {
@@ -76,30 +74,6 @@ public class KnowledgeEvidenceService {
             .map(result -> toEvidence(result, requiredFilters))
             .toList();
         return new SearchResponse(query, evidence.size(), evidence);
-    }
-
-    @Transactional
-    public PublicArticle update(String id, UpdateArticleRequest request, CoursePrincipal principal) {
-        CoursePrincipal authorized = authorizationService.requireScope(principal, "support:write");
-        KnowledgeArticle article = articleRepository.findByIdAndTenantId(id, authorized.tenantId())
-            .orElseThrow(() -> new ArticleNotFoundException(id));
-        article.setTitle(request.title());
-        article.setBody(request.body());
-        articleRepository.saveAndFlush(article);
-        replaceVector(article);
-        return PublicArticle.from(article);
-    }
-
-    @Transactional
-    public void delete(String id, CoursePrincipal principal) {
-        CoursePrincipal authorized = authorizationService.requireScope(principal, "support:write");
-        KnowledgeArticle article = articleRepository.findByIdAndTenantId(id, authorized.tenantId())
-            .orElseThrow(() -> new ArticleNotFoundException(id));
-        removeVectorIfPresent(id);
-        articleRepository.delete(article);
-        if (vectorDatabaseService.vectorExists(KnowledgeArticle.ENTITY_TYPE, id)) {
-            throw new EvidenceOperationException("Vector still exists after deleting article " + id);
-        }
     }
 
     public void clear() {
@@ -214,8 +188,6 @@ public class KnowledgeEvidenceService {
     public record SearchResponse(String query, int resultCount, List<Evidence> evidence) { }
 
     public record Evidence(String evidenceId, double score, String content, Map<String, Object> metadata) { }
-
-    public record UpdateArticleRequest(@NotBlank String title, @NotBlank String body) { }
 
     public record PublicArticle(String id, String title, String body, String category,
                                 String status, String visibility) {

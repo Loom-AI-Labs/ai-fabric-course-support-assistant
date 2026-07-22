@@ -10,7 +10,7 @@ course:
         user-id: customer-alex
         tenant-id: tenant-blue
         session-id: course-session-alex
-        scopes: [support:read, support:write, migration:admin]
+        scopes: [support:read, support:write, migration:admin, data-sync:upsert, data-sync:delete]
         roles: [CUSTOMER]
       - token: ${COURSE_RILEY_TOKEN:course-riley-local-token}
         user-id: customer-riley
@@ -61,6 +61,13 @@ ai:
     entity-fields:
       knowledge-article:
         created-at-field: createdAt
+  data-sync:
+    enabled: true
+    base-path: /api/internal/ai-data-sync
+    max-batch-size: 2
+    max-content-chars: 1000
+    max-field-value-chars: 2000
+    allow-trusted-platform-internal-sync-bypass: false
   config:
     default-file: ai-entity-config.yml
   service:

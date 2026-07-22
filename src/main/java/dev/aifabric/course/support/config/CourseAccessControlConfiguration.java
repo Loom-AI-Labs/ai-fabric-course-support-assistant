@@ -14,15 +14,29 @@ import org.springframework.util.StringUtils;
 public class CourseAccessControlConfiguration {
 
     private static final String ORCHESTRATION_RESOURCE = "rag:intent";
+    private static final String KNOWLEDGE_VECTOR_RESOURCE = "vectorSpace:knowledge-article";
     private static final String READ_OPERATION = "READ";
 
     @Bean
     EntityAccessPolicy courseEntityAccessPolicy() {
-        return (authContext, entity) -> hasRequestSubject(authContext)
-            && StringUtils.hasText(authContext.getTenantId())
-            && hasScope(authContext.getGrantedScopes(), "support:read")
-            && ORCHESTRATION_RESOURCE.equals(value(entity, "resourceId"))
-            && READ_OPERATION.equalsIgnoreCase(value(entity, "operationType"));
+        return (authContext, entity) -> {
+            if (!hasRequestSubject(authContext) || !StringUtils.hasText(authContext.getTenantId())) {
+                return false;
+            }
+            String resource = value(entity, "resourceId");
+            String operation = value(entity, "operationType");
+            if (ORCHESTRATION_RESOURCE.equals(resource)) {
+                return hasScope(authContext.getGrantedScopes(), "support:read")
+                    && READ_OPERATION.equalsIgnoreCase(operation);
+            }
+            if (!KNOWLEDGE_VECTOR_RESOURCE.equals(resource)) {
+                return false;
+            }
+            return ("WRITE".equalsIgnoreCase(operation)
+                    && hasScope(authContext.getGrantedScopes(), "data-sync:upsert"))
+                || ("DELETE".equalsIgnoreCase(operation)
+                    && hasScope(authContext.getGrantedScopes(), "data-sync:delete"));
+        };
     }
 
     @Bean

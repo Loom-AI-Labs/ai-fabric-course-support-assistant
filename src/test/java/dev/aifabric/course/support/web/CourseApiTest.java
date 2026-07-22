@@ -53,7 +53,7 @@ class CourseApiTest {
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p04-migration-backfill"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p05-live-data-sync"))
             .andExpect(jsonPath("$.sourceRecords.articles").value(9))
             .andExpect(jsonPath("$.indexedVectors").value(0))
             .andExpect(jsonPath("$.capabilities.semanticSearch").value(true))
@@ -94,7 +94,7 @@ class CourseApiTest {
             .andExpect(jsonPath("$.service").value("ai-fabric-course-support-assistant"))
             .andExpect(jsonPath("$.version").isNotEmpty())
             .andExpect(jsonPath("$.aiFabricVersion").value("0.3.3"))
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p04-migration-backfill"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p05-live-data-sync"))
             .andExpect(jsonPath("$.provider.mode").value("deterministic-test"))
             .andExpect(jsonPath("$.provider.orchestration").value("course-orchestration-test"))
             .andExpect(jsonPath("$.provider.orchestrationModel").value("course-test-orchestration"))
@@ -122,7 +122,9 @@ class CourseApiTest {
                     }
                     """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.title").value("Download a billing invoice"));
+            .andExpect(jsonPath("$.article.title").value("Download a billing invoice"))
+            .andExpect(jsonPath("$.sync.operation").value("UPSERT"))
+            .andExpect(jsonPath("$.sync.id").value("article-billing-method"));
 
         mockMvc.perform(get("/api/knowledge/search")
                 .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
@@ -136,7 +138,9 @@ class CourseApiTest {
 
         mockMvc.perform(delete("/api/knowledge/articles/article-billing-method")
                 .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER))
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.operation").value("DELETE"))
+            .andExpect(jsonPath("$.id").value("article-billing-method"));
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())

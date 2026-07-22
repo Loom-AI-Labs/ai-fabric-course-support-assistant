@@ -8,6 +8,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
 @Entity
@@ -59,6 +60,9 @@ public class KnowledgeArticle {
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @Version
+    private long version;
 
     protected KnowledgeArticle() {
     }
@@ -135,5 +139,9 @@ public class KnowledgeArticle {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public long getVersion() {
+        return version;
     }
 }

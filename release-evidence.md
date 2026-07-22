@@ -1,6 +1,6 @@
-# Course Vertical Slice Release Evidence
+# Course Support Assistant Release Evidence
 
-Candidate checkpoint: `course-0.3.3-06-tested-solution`  
+Candidate checkpoint: `course-0.3.3-p05-live-data-sync`
 Framework baseline: AI Fabric `0.3.3`  
 Required release posture: Java 21, local ONNX embeddings, Lucene vectors, no generation fallback
 
@@ -17,6 +17,8 @@ packaged-smoke artifacts for the exact source commit. A missing or skipped row i
 | Backend memory | `ConversationMemoryIntegrationTest` | new conversation, cross-owner access, bounded IDs, and transient request cases | the client cannot inject history or another owner's pending state |
 | Tenant evidence | `SecurityPrivacyIntegrationTest.tenantScopedSearchSeparatesAlexAndRileyAndExcludesRestrictedEvidence` | forged tenant headers and cross-tenant targets are denied | forbidden hits are rejected before prompt generation |
 | Privacy | `SecurityPrivacyIntegrationTest` and `SafePIIProcessorTest` | detector exception, unchanged payload, and exposed original all fail closed | raw email and SSN are absent from API, database, vector, prompt, output, and chat history |
+| Migration backfill | `KnowledgeMigrationIntegrationTest` | denied admin access, missing jobs, invalid transitions, and cancellation remain visible | private notes stay out of queue payloads and an idempotent rerun adds no duplicate vector work |
+| Live Data Sync | `KnowledgeDataSyncIntegrationTest` | unauthorized/raw access, invalid projection, batch limit, and partial failure are explicit | failed upsert rolls back source; update replaces stale content; delete removes source and vector |
 | Build identity | `CourseDeploymentInfoServiceTest` and `CourseApiTest.healthReportsBuildAndProviderPostureWithoutCredentials` | unavailable source metadata is reported as `unknown` | health never exposes credentials |
 | Packaged runtime | `scripts/smoke-packaged.sh` | missing/invalid credentials return 401 and every failed assertion exits non-zero | cross-tenant evidence and raw PII are absent from responses and logs |
 
@@ -37,7 +39,7 @@ real Lucene storage. It records:
 
 - `target/course-release-evidence/packaged-smoke-summary.json`;
 - source-derived deployment health and provider posture;
-- readiness, seed, index, search, and redacted-message responses;
+- readiness, migration, live create/update/delete, search, and redacted-message responses;
 - the packaged application log with raw-PII assertions;
 - 401 results for missing and invalid credentials.
 
@@ -55,7 +57,7 @@ contain sensitive data.
 
 ## Release Decision Rule
 
-The Core checkpoint is ready only when the clean build and packaged smoke both pass for the same
+The candidate checkpoint is ready only when the clean build and packaged smoke both pass for the same
 source commit. Optional evidence remains explicitly `NOT RUN` unless it actually ran. Any failed
 required row, hidden provider fallback, cross-tenant leak, raw-PII leak, or test-skipping flag makes
 the candidate not ready.

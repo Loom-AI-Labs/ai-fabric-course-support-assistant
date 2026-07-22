@@ -1,0 +1,74 @@
+@baseUrl = http://localhost:8080
+@alexToken = course-alex-local-token
+@rileyToken = course-riley-local-token
+
+### Riley has no data-sync scope. Source and vector state must remain unchanged (403).
+POST {{baseUrl}}/api/knowledge/articles
+Authorization: Bearer {{rileyToken}}
+Content-Type: application/json
+
+{
+  "id": "article-riley-forbidden",
+  "title": "Forbidden sync",
+  "body": "This source row must not be created.",
+  "category": "security"
+}
+
+### Create application source truth and derived evidence through the trusted boundary.
+POST {{baseUrl}}/api/knowledge/articles
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "id": "article-live-sync",
+  "title": "Enroll a passkey",
+  "body": "Register a passkey in Security Settings before removing the password.",
+  "category": "authentication"
+}
+
+### Update the same stable source/evidence identity.
+PUT {{baseUrl}}/api/knowledge/articles/article-live-sync
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "title": "Replace a password with a security key",
+  "body": "Register the hardware security key, verify it, then revoke the previous login method."
+}
+
+### The response must contain the updated text, not the prior passkey projection.
+GET {{baseUrl}}/api/knowledge/search?q=How%20do%20I%20revoke%20the%20previous%20security%20key%20login%3F
+Authorization: Bearer {{alexToken}}
+
+### Three operations exceed the configured framework batch limit of two (400/BATCH_TOO_LARGE).
+POST {{baseUrl}}/api/knowledge/sync/reconcile
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "articleIds": [
+    "article-account-lockout",
+    "article-two-factor",
+    "article-api-key"
+  ]
+}
+
+### Remove derived evidence and application source state.
+DELETE {{baseUrl}}/api/knowledge/articles/article-live-sync
+Authorization: Bearer {{alexToken}}
+
+### The raw framework DTO endpoint is never a public identity boundary (401/403; it may be absent as 404).
+POST {{baseUrl}}/api/internal/ai-data-sync/upsert
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "vectorSpace": "unknown-space",
+  "id": "forged",
+  "content": "forged",
+  "trace": {
+    "authContext": {
+      "subjectId": "customer-alex"
+    }
+  }
+}
