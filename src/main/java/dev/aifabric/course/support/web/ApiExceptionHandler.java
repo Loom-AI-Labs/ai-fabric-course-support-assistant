@@ -8,6 +8,8 @@ import dev.aifabric.course.support.knowledge.EvidenceBoundaryException;
 import dev.aifabric.course.support.knowledge.EvidenceOperationException;
 import dev.aifabric.course.support.privacy.PrivacyBoundaryException;
 import dev.aifabric.course.support.assistant.UnsupportedSupportPositionException;
+import dev.aifabric.course.support.migration.MigrationJobNotFoundException;
+import dev.aifabric.course.support.migration.MigrationTransitionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -56,5 +58,15 @@ public class ApiExceptionHandler {
     @ExceptionHandler(UnsupportedSupportPositionException.class)
     ProblemDetail handleUnsupportedPosition(UnsupportedSupportPositionException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(MigrationJobNotFoundException.class)
+    ProblemDetail handleMigrationNotFound(MigrationJobNotFoundException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(MigrationTransitionException.class)
+    ProblemDetail handleMigrationTransition(MigrationTransitionException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
     }
 }

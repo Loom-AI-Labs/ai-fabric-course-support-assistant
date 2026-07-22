@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CourseReadinessService {
 
-    public static final String CHECKPOINT = "course-0.3.3-p03-prompt-overlays";
+    public static final String CHECKPOINT = "course-0.3.3-p04-migration-backfill";
 
     private final CourseDataService dataService;
     private final Environment environment;
@@ -71,6 +71,7 @@ public class CourseReadinessService {
             && !piiProperties.isStoreEncryptedOriginal());
         capabilities.put("modeRouting", true);
         capabilities.put("promptOverlays", true);
+        capabilities.put("migrationBackfill", true);
 
         return new ReadinessResponse(
             CHECKPOINT,

@@ -10,14 +10,12 @@ tag is a lesson checkpoint.
 
 ## Current Checkpoint
 
-This first Production checkpoint keeps the complete Core slice and adds separate orchestration and
-answer-generation provider/model configuration. The normal Maven gate runs 42 deterministic tests
-without API keys, including recording-provider proof for both `LlmPurpose` routes and a failure test
-that proves disabled fallback does not switch to the other purpose provider. A packaged-runtime script then
-starts the executable JAR with real ONNX embeddings and Lucene storage, exercises authentication,
-tenant isolation, indexing, search, and PII redaction over HTTP, and retains machine-readable
-evidence. `/api/demo/health` reports source-derived build identity and the configured provider
-posture without exposing credentials.
+The fourth Production checkpoint keeps the complete Core slice and adds a real initial backfill from
+application-owned JPA rows into AI Fabric's durable indexing queue. The app binds the migration
+repository explicitly, exposes an admin-scoped job API, supports filters and bounded batches, and
+reports migration progress separately from queue and vector readiness. Deterministic tests cover
+pause, resume, cancel, invalid transitions, tenant-safe retrieval, private-field exclusion, and an
+idempotent rerun. The packaged gate proves the same flow with real ONNX embeddings and Lucene.
 
 ## Requirements
 
@@ -62,7 +60,10 @@ curl -s -X POST http://localhost:8080/api/assistant/query \
   -H "Authorization: Bearer $COURSE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"message":"What should I do if failed sign-ins locked me out?"}'
-curl -s -X POST http://localhost:8080/api/demo/index
+curl -s -X POST http://localhost:8080/api/admin/migrations/knowledge-articles \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"batchSize":3,"rateLimit":0,"reindexExisting":false}'
 curl -s http://localhost:8080/api/demo/readiness
 curl -s http://localhost:8080/api/demo/health
 curl -s -X POST http://localhost:8080/api/assistant/query \
@@ -104,9 +105,15 @@ OAuth2/JWT or gateway principal adapter while preserving `CoursePrincipalProvide
 application boundary.
 
 The first RAG request returns `NO_EVIDENCE` and does not call the LLM because ordinary
-database rows have not been indexed. The second returns `ANSWERED` with
-`policy-account-lockout-01` as validated evidence. `internalNotes` is deliberately not annotated
-and never enters vector content, the generation prompt, or the public response.
+database rows have not been indexed. Start the migration, wait for the job to complete, then wait
+for `indexingCaughtUp=true`; job completion alone means rows were scanned and indexing work was
+queued. The second RAG request returns `ANSWERED` with validated evidence. `internalNotes` is
+excluded from the durable queue payload, vector content, generation prompt, and public response.
+
+AI Fabric `0.3.3` exposes source rows processed and failed, but not an exact per-job skipped count.
+The course API says so explicitly instead of deriving a misleading number. Idempotency is proved by
+stable vector identity and an unchanged queue-entry count after a rerun with
+`reindexExisting=false`.
 
 The `openai` profile uses the Spring AI-backed OpenAI adapter with independently configurable
 orchestration and generation models, ONNX for local embeddings, and Lucene for local vector search.
@@ -170,6 +177,7 @@ tokenizer. They contain no ranking logic and do not replace AI Fabric's ONNX inf
 | `course-0.3.3-p01-provider-routing` | Purpose-specific provider and model routing |
 | `course-0.3.3-p02-modes-positions` | Application position mapping and server-owned orchestration modes |
 | `course-0.3.3-p03-prompt-overlays` | Application prompt overlays, curated fallback, and safe diagnostics |
+| `course-0.3.3-p04-migration-backfill` | Admin-scoped migration, durable indexing, readiness, and idempotent backfill |
 
 Do not move an existing checkpoint tag. Course corrections receive a new course patch version.
 
@@ -186,6 +194,7 @@ confirmation state, and provider integration as those capabilities are introduce
 - `docs/security-privacy-contract.md` traces verified identity, tenant evidence, actions, and PII.
 - `release-evidence.md` maps each release claim to executable proof.
 - `src/main/resources/prompts/` contains the narrow, tested course-support prompt overlay.
+- `requests/production-04-migration-backfill.http` exercises the migration lifecycle.
 - `scripts/reset-course.sh` restores the deterministic fixture state.
 - `scripts/smoke-packaged.sh` proves the packaged ONNX/Lucene application over HTTP.
 - `.github/workflows/verify.yml` runs both gates and retains their reports.

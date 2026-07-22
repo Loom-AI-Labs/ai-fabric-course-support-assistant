@@ -81,8 +81,68 @@ curl --fail --silent --show-error -X POST "${BASE_URL}/api/demo/reset" \
   >"${REPORT_DIR}/reset.json" || fail "fixture reset failed"
 curl --fail --silent --show-error -X POST "${BASE_URL}/api/demo/seed" \
   >"${REPORT_DIR}/seed.json" || fail "fixture seed failed"
-curl --fail --silent --show-error -X POST "${BASE_URL}/api/demo/index" \
-  >"${REPORT_DIR}/index.json" || fail "evidence indexing failed"
+curl --fail --silent --show-error -X POST "${BASE_URL}/api/admin/migrations/knowledge-articles" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"batchSize":3,"rateLimit":0,"reindexExisting":false}' \
+  >"${REPORT_DIR}/migration-start.json" || fail "migration start failed"
+migration_job_id="$(jq -r '.jobId // empty' "${REPORT_DIR}/migration-start.json")"
+[[ -n "${migration_job_id}" ]] || fail "migration start did not return a job ID"
+
+for _ in $(seq 1 100); do
+  curl --fail --silent --show-error \
+    "${BASE_URL}/api/admin/migrations/knowledge-articles/${migration_job_id}" \
+    -H 'Authorization: Bearer course-alex-local-token' \
+    >"${REPORT_DIR}/migration-progress.json" || fail "migration progress failed"
+  migration_status="$(jq -r '.status' "${REPORT_DIR}/migration-progress.json")"
+  [[ "${migration_status}" != "FAILED" && "${migration_status}" != "CANCELLED" ]] \
+    || fail "migration reached ${migration_status}"
+  if [[ "${migration_status}" == "COMPLETED" ]]; then
+    break
+  fi
+  sleep 0.1
+done
+[[ "$(jq -r '.status' "${REPORT_DIR}/migration-progress.json")" == "COMPLETED" ]] \
+  || fail "migration did not complete"
+
+for _ in $(seq 1 100); do
+  curl --fail --silent --show-error \
+    "${BASE_URL}/api/admin/migrations/knowledge-articles/${migration_job_id}" \
+    -H 'Authorization: Bearer course-alex-local-token' \
+    >"${REPORT_DIR}/migration-progress.json" || fail "migration readiness failed"
+  if jq -e '.currentIndexedVectors == 9 and .pendingQueueEntries == 0
+      and .processingQueueEntries == 0 and .indexingCaughtUp == true
+      and .fullSourceVectorCoverage == true' \
+      "${REPORT_DIR}/migration-progress.json" >/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+jq -e '.status == "COMPLETED" and .totalSourceRows == 9 and .processedSourceRows == 9
+  and .failedRows == 0 and .currentIndexedVectors == 9 and .indexingCaughtUp == true
+  and .fullSourceVectorCoverage == true' \
+  "${REPORT_DIR}/migration-progress.json" >/dev/null || fail "migration indexing did not catch up"
+
+completed_before_rerun="$(jq -r '.completedQueueEntries' "${REPORT_DIR}/migration-progress.json")"
+curl --fail --silent --show-error -X POST "${BASE_URL}/api/admin/migrations/knowledge-articles" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"batchSize":4,"rateLimit":0,"reindexExisting":false}' \
+  >"${REPORT_DIR}/migration-rerun-start.json" || fail "migration rerun start failed"
+rerun_job_id="$(jq -r '.jobId // empty' "${REPORT_DIR}/migration-rerun-start.json")"
+[[ -n "${rerun_job_id}" ]] || fail "migration rerun did not return a job ID"
+for _ in $(seq 1 100); do
+  curl --fail --silent --show-error \
+    "${BASE_URL}/api/admin/migrations/knowledge-articles/${rerun_job_id}" \
+    -H 'Authorization: Bearer course-alex-local-token' \
+    >"${REPORT_DIR}/migration-rerun.json" || fail "migration rerun progress failed"
+  [[ "$(jq -r '.status' "${REPORT_DIR}/migration-rerun.json")" == "COMPLETED" ]] && break
+  sleep 0.1
+done
+jq -e --argjson completed "${completed_before_rerun}" \
+  '.status == "COMPLETED" and .processedSourceRows == 9 and .currentIndexedVectors == 9
+    and .completedQueueEntries == $completed' \
+  "${REPORT_DIR}/migration-rerun.json" >/dev/null || fail "migration rerun was not idempotent"
 
 curl --fail --silent --show-error --get "${BASE_URL}/api/knowledge/search" \
   -H 'Authorization: Bearer course-alex-local-token' \
@@ -126,16 +186,17 @@ jq -e '.candidateVersions == ["v1-course-support", "v1-support", "v1"]
   and .resolvedVersions["support-answer"] == "v1-course-support"
   and .resolvedVersions["action-selector"] == "v1"' \
   "${REPORT_DIR}/prompt-posture.json" >/dev/null || fail "prompt overlay resolution is incomplete"
-jq -e '.checkpoint == "course-0.3.3-p03-prompt-overlays"
+jq -e '.checkpoint == "course-0.3.3-p04-migration-backfill"
   and .indexedVectors == 9
   and .indexedMessageVectors == 1
   and .capabilities.tenantSecurity == true
   and .capabilities.piiProtection == true
   and .capabilities.modeRouting == true
-  and .capabilities.promptOverlays == true' \
+  and .capabilities.promptOverlays == true
+  and .capabilities.migrationBackfill == true' \
   "${REPORT_DIR}/readiness.json" >/dev/null || fail "readiness contract is incomplete"
 jq -e '.status == "UP"
-  and .checkpoint == "course-0.3.3-p03-prompt-overlays"
+  and .checkpoint == "course-0.3.3-p04-migration-backfill"
   and .version != "unknown"
   and .aiFabricVersion == "0.3.3"
   and .commit != "unknown"
@@ -156,12 +217,14 @@ fi
 
 jq -n \
   --arg status PASS \
-  --arg checkpoint course-0.3.3-p03-prompt-overlays \
+  --arg checkpoint course-0.3.3-p04-migration-backfill \
   --arg profile local \
   --arg unauthenticatedStatus "${unauthenticated_status}" \
   --arg invalidCredentialStatus "${invalid_status}" \
   --slurpfile health "${REPORT_DIR}/deployment-health.json" \
   --slurpfile readiness "${REPORT_DIR}/readiness.json" \
+  --slurpfile migration "${REPORT_DIR}/migration-progress.json" \
+  --slurpfile migrationRerun "${REPORT_DIR}/migration-rerun.json" \
   '{
     status: $status,
     checkpoint: $checkpoint,
@@ -169,7 +232,9 @@ jq -n \
     unauthenticatedStatus: $unauthenticatedStatus,
     invalidCredentialStatus: $invalidCredentialStatus,
     deployment: $health[0],
-    readiness: $readiness[0]
+    readiness: $readiness[0],
+    migration: $migration[0],
+    migrationRerun: $migrationRerun[0]
   }' >"${REPORT_DIR}/packaged-smoke-summary.json"
 
 printf 'Packaged smoke PASS. Evidence: %s\n' "${REPORT_DIR}/packaged-smoke-summary.json"

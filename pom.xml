@@ -96,6 +96,10 @@
             <artifactId>ai-fabric-pii</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.github.loom-ai-labs</groupId>
+            <artifactId>ai-fabric-migration-core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>ai.djl.huggingface</groupId>
             <artifactId>tokenizers</artifactId>
             <version>${djl.version}</version>

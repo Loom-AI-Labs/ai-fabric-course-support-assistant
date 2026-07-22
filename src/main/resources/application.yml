@@ -10,7 +10,7 @@ course:
         user-id: customer-alex
         tenant-id: tenant-blue
         session-id: course-session-alex
-        scopes: [support:read, support:write]
+        scopes: [support:read, support:write, migration:admin]
         roles: [CUSTOMER]
       - token: ${COURSE_RILEY_TOKEN:course-riley-local-token}
         user-id: customer-riley
@@ -44,7 +44,23 @@ ai:
         - v1-course-support
         - v1-support
   indexing:
-    enabled: false
+    enabled: true
+    async-worker:
+      enabled: true
+      fixed-delay: PT0.1S
+      batch-size: 25
+    batch-worker:
+      enabled: false
+    cleanup:
+      enabled: false
+  migration:
+    enabled: true
+    default-batch-size: 25
+    default-rate-limit: 0
+    max-concurrent-jobs: 1
+    entity-fields:
+      knowledge-article:
+        created-at-field: createdAt
   config:
     default-file: ai-entity-config.yml
   service:

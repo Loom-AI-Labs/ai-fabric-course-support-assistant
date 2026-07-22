@@ -1,0 +1,52 @@
+@baseUrl = http://localhost:8080
+@alexToken = course-alex-local-token
+@rileyToken = course-riley-local-token
+
+### Reset source data and vectors, then restore the nine pre-existing source articles.
+POST {{baseUrl}}/api/demo/reset
+
+###
+POST {{baseUrl}}/api/demo/seed
+
+### Riley can read Tenant Red support evidence but cannot administer migration jobs (403).
+POST {{baseUrl}}/api/admin/migrations/knowledge-articles
+Authorization: Bearer {{rileyToken}}
+Content-Type: application/json
+
+{}
+
+### Start a bounded initial backfill as the course migration administrator.
+# @name startMigration
+POST {{baseUrl}}/api/admin/migrations/knowledge-articles
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "batchSize": 3,
+  "rateLimit": 0,
+  "reindexExisting": false
+}
+
+### Paste jobId from startMigration. COMPLETED means scanning/enqueueing finished.
+@jobId = replace-with-job-id
+GET {{baseUrl}}/api/admin/migrations/knowledge-articles/{{jobId}}
+Authorization: Bearer {{alexToken}}
+
+### Wait separately for pendingQueueEntries=0, processingQueueEntries=0, and indexingCaughtUp=true.
+GET {{baseUrl}}/api/admin/migrations/knowledge-articles/{{jobId}}
+Authorization: Bearer {{alexToken}}
+
+### Prove the derived evidence is retrievable through the tenant-filtered application API.
+GET {{baseUrl}}/api/knowledge/search?q=I%20cannot%20sign%20in%20after%20too%20many%20attempts
+Authorization: Bearer {{alexToken}}
+
+### Rerun with reindexExisting=false. Vector identity and completed queue count remain stable.
+POST {{baseUrl}}/api/admin/migrations/knowledge-articles
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "batchSize": 4,
+  "rateLimit": 0,
+  "reindexExisting": false
+}

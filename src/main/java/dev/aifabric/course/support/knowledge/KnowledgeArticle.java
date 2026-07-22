@@ -3,14 +3,19 @@ package dev.aifabric.course.support.knowledge;
 import ai.fabric.annotation.AICapable;
 import ai.fabric.annotation.AIContext;
 import ai.fabric.annotation.AISearchable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "knowledge_article")
-@AICapable(entityType = KnowledgeArticle.ENTITY_TYPE)
+@AICapable(
+    entityType = KnowledgeArticle.ENTITY_TYPE,
+    migrationRepository = KnowledgeArticleRepository.class
+)
 public class KnowledgeArticle {
 
     public static final String ENTITY_TYPE = "knowledge-article";
@@ -49,7 +54,11 @@ public class KnowledgeArticle {
     private boolean visibleToUser;
 
     @Column(length = 2_000)
+    @JsonIgnore
     private String internalNotes;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
 
     protected KnowledgeArticle() {
     }
@@ -61,6 +70,13 @@ public class KnowledgeArticle {
 
     public KnowledgeArticle(String id, String title, String body, String category, String tenantId,
                             String status, String visibility, boolean visibleToUser, String internalNotes) {
+        this(id, title, body, category, tenantId, status, visibility, visibleToUser, internalNotes,
+            LocalDateTime.of(2026, 1, 1, 0, 0));
+    }
+
+    public KnowledgeArticle(String id, String title, String body, String category, String tenantId,
+                            String status, String visibility, boolean visibleToUser, String internalNotes,
+                            LocalDateTime createdAt) {
         this.id = id;
         this.title = title;
         this.body = body;
@@ -70,6 +86,7 @@ public class KnowledgeArticle {
         this.visibility = visibility;
         this.visibleToUser = visibleToUser;
         this.internalNotes = internalNotes;
+        this.createdAt = createdAt;
     }
 
     public String getId() {
@@ -114,5 +131,9 @@ public class KnowledgeArticle {
 
     public String getInternalNotes() {
         return internalNotes;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }
