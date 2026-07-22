@@ -1,5 +1,6 @@
 package dev.aifabric.course.support.demo;
 
+import ai.fabric.chat.service.ChatSessionService;
 import dev.aifabric.course.support.account.CustomerAccount;
 import dev.aifabric.course.support.account.CustomerAccountRepository;
 import dev.aifabric.course.support.knowledge.KnowledgeArticle;
@@ -10,6 +11,7 @@ import dev.aifabric.course.support.ticket.SupportTicket;
 import dev.aifabric.course.support.ticket.SupportTicketRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,19 +25,24 @@ public class CourseDataService {
     private final SupportPolicyRepository policyRepository;
     private final CustomerAccountRepository accountRepository;
     private final SupportTicketRepository ticketRepository;
+    private final Optional<ChatSessionService> chatSessionService;
 
     public CourseDataService(KnowledgeArticleRepository articleRepository,
                              SupportPolicyRepository policyRepository,
                              CustomerAccountRepository accountRepository,
-                             SupportTicketRepository ticketRepository) {
+                             SupportTicketRepository ticketRepository,
+                             Optional<ChatSessionService> chatSessionService) {
         this.articleRepository = articleRepository;
         this.policyRepository = policyRepository;
         this.accountRepository = accountRepository;
         this.ticketRepository = ticketRepository;
+        this.chatSessionService = chatSessionService;
     }
 
     @Transactional
     public DatasetSnapshot reset() {
+        chatSessionService.ifPresent(service -> service.getUserConversations(COURSE_CUSTOMER)
+            .forEach(session -> service.deleteConversation(session.getId(), COURSE_CUSTOMER)));
         ticketRepository.deleteAll();
         policyRepository.deleteAll();
         articleRepository.deleteAll();

@@ -7,6 +7,7 @@ identity, tenant context, authorization, transactions, and safe result projectio
 | --- | --- | --- | --- | --- |
 | `get_my_ticket_status` | `READ` | `ticketNumber` | subject, tenant, session | No |
 | `create_support_ticket` | `WRITE_ONLY` | `subject`, `description`, optional `priority` | subject, tenant, conversation | Yes |
+| `escalate_support_ticket` | `WRITE_ONLY` | `ticketNumber` | subject, tenant, conversation | Yes |
 
 The action schema must never expose `userId`, `tenantId`, `customerId`, `conversationId`, or
 `sessionId` as model-populated parameters. `CoursePrincipalProvider` supplies a fixed trusted
@@ -19,6 +20,7 @@ query-entry gate. `@ActionAllowed` then denies anonymous and invalid customer co
 `SupportTicketService` independently enforces customer and tenant ownership inside each database
 transaction.
 
-The current core `InMemoryPendingActionStore` is sufficient to demonstrate confirmation, but it is
-process-local and not durable. The next checkpoint replaces it with `ai-fabric-chat-session`, which
-owns pending actions and conversation turns in backend storage.
+`ai-fabric-chat-session` supplies the primary `ChatSessionPendingActionStore`. Confirmation state,
+recent sanitized turns, and bounded pinned targets therefore remain backend-owned across separate
+HTTP turns. The browser confirms with a new message in the same conversation; it never reposts the
+action name, parameters, customer identity, or tenant as authority.

@@ -20,6 +20,11 @@ ai:
   enabled: true
   curated:
     pack: support
+  prompts:
+    bundle:
+      overlays:
+        - v1-course-support
+        - v1-support
   indexing:
     enabled: false
   config:
@@ -39,6 +44,13 @@ ai:
       enable-contextual-search: false
   pii-detection:
     enabled: false
+  chat:
+    enabled: true
+    auto-create-sessions: true
+    window-size: 8
+    max-context-chars: 4000
+    pinned-target-reuse-window-turns: 3
+    max-pending-action-stack-depth: 4
   orchestration:
     action-param-provenance-mode: WARN
     default-mode: support_assistant

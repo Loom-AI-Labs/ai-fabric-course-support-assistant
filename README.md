@@ -9,18 +9,18 @@ privacy, and release verification. Each immutable `course-0.3.3-*` tag is a less
 
 ## Current Checkpoint
 
-This checkpoint adds governed read and write actions while preserving the evidence-grounded RAG
-endpoint from the previous checkpoint. AI Fabric discovers an explicit action catalog, validates
-typed model parameters, denies anonymous writes, and owns pending confirmation state. The support
-application supplies trusted identity and tenant context, authorizes the current customer again in
-its transaction, performs the mutation, and returns a concise structured result.
+This checkpoint adds backend-owned conversation memory while preserving semantic search,
+evidence-grounded RAG, and governed actions. AI Fabric now records sanitized turns in JPA-backed
+chat sessions, supplies bounded role-aware history to the LLM, persists pending confirmations, and
+reuses short-lived targets. The browser sends only the new message, stable conversation ID, and
+optional current attachments.
 
 ## Requirements
 
 - Java 21
 - Maven 3.9+, or the included Maven wrapper
 
-## Run Governed Actions
+## Run Backend Conversation Memory
 
 ```bash
 ./mvnw clean verify
@@ -44,18 +44,19 @@ curl -s -X POST http://localhost:8080/api/assistant/query \
 curl -s http://localhost:8080/api/assistant/actions
 curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
   -H 'Content-Type: application/json' \
-  -d '{"message":"What is the status of T-1001?","conversationId":"course-actions"}'
+  -d '{"message":"Why is ticket T-1001 unresolved?","conversationId":"course-memory"}'
 curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
   -H 'Content-Type: application/json' \
-  -d '{"message":"Create a high-priority ticket titled Account locked and explain that recovery emails never arrive.","conversationId":"course-actions"}'
+  -d '{"message":"Escalate it.","conversationId":"course-memory"}'
+curl -s http://localhost:8080/api/assistant/conversations/course-memory
 curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
   -H 'Content-Type: application/json' \
-  -d '{"message":"yes","conversationId":"course-actions"}'
+  -d '{"message":"Yes.","conversationId":"course-memory"}'
 ```
 
-The RAG flow remains available at `/api/assistant/query`. The governed action flow uses
-`/api/assistant/orchestrate`; copyable read, clarification, rejection, confirmation, and duplicate
-confirmation requests are in `requests/03-governed-actions.http`.
+The RAG flow remains available at `/api/assistant/query`. The governed and conversational flow uses
+`/api/assistant/orchestrate`; copyable three-turn follow-up, reopen, duplicate-confirmation, and
+new-conversation isolation requests are in `requests/04-backend-memory.http`.
 
 The first RAG request returns `NO_EVIDENCE` and does not call the LLM because ordinary
 database rows have not been indexed. The second returns `ANSWERED` with
@@ -68,13 +69,20 @@ returns `RETRIEVAL_FAILED`; a provider or structured-citation failure returns `G
 with HTTP 503 and no canned answer.
 
 `./mvnw clean verify` needs no API key. Tests use explicitly labelled, test-only embedding and
-generation providers and prove the same public contracts without pretending to be live AI. Action
-tests inject valid structured intents, then execute the real AI Fabric pipeline, registry, pending
-store, annotations, argument binder, authorization hooks, and JPA transaction.
+generation providers without pretending to be live AI. They inject valid structured intents, then
+exercise the real AI Fabric pipeline, JPA chat storage, role-aware history, session-backed pending
+store, registry, annotations, argument binder, authorization hooks, and domain transactions.
 
-This checkpoint uses the core in-memory pending action store deliberately. It survives turns in one
-running process but not a restart or horizontal scale-out. The next checkpoint adds
-`ai-fabric-chat-session` and moves conversation and confirmation state into backend-owned storage.
+The app configures an eight-turn, 4,000-character history window, three-turn target reuse, and a
+four-action pending stack. `CourseConversationAuthorization` checks known owners and bounded IDs;
+AI Fabric separately verifies stored ownership. `NEVER_PERSIST` is available only through trusted
+backend code and skips both enrichment and recording.
+
+The application prompt overlay `v1-course-support` precedes the curated `v1-support` pack. Its
+only domain delta prevents a bare acknowledgement after a completed write from reconstructing that
+write from history. The overlay covers the compound fast path and multi-step fallback; all omitted
+prompt slots continue through `v1-support` and then the complete `v1` base bundle. The classifier
+contract is tested, and no text-matching application router replaces LLM intent resolution.
 
 The `local` profile remains useful for retrieval-only exploration. It uses the real ONNX provider
 and Lucene with generation disabled. There is no runtime fixture or hidden fallback.
@@ -106,6 +114,8 @@ confirmation state, and provider integration as those capabilities are introduce
 ## Useful Files
 
 - `requests/` contains copyable HTTP scenarios.
+- `docs/conversation-memory-contract.md` traces memory, ownership, bounds, and transient requests.
+- `src/main/resources/prompts/` contains the narrow, tested course-support prompt overlay.
 - `scripts/reset-course.sh` restores the deterministic fixture state.
 - `.github/workflows/verify.yml` proves the repository builds independently from Maven Central.
 

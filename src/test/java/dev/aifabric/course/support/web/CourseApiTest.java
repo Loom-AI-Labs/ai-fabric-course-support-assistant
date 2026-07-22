@@ -50,12 +50,13 @@ class CourseApiTest {
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-03-actions"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-04-memory"))
             .andExpect(jsonPath("$.sourceRecords.articles").value(6))
             .andExpect(jsonPath("$.indexedVectors").value(0))
             .andExpect(jsonPath("$.capabilities.semanticSearch").value(true))
             .andExpect(jsonPath("$.capabilities.rag").value(true))
-            .andExpect(jsonPath("$.capabilities.governedActions").value(true));
+            .andExpect(jsonPath("$.capabilities.governedActions").value(true))
+            .andExpect(jsonPath("$.capabilities.conversationMemory").value(true));
 
         mockMvc.perform(get("/api/knowledge/search").param("q", "I cannot sign in after too many attempts"))
             .andExpect(status().isOk())

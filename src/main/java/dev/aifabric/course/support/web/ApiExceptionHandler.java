@@ -1,5 +1,7 @@
 package dev.aifabric.course.support.web;
 
+import ai.fabric.chat.exception.ChatSessionAccessDeniedException;
+import ai.fabric.chat.exception.ChatSessionNotFoundException;
 import dev.aifabric.course.support.common.FeatureUnavailableException;
 import dev.aifabric.course.support.knowledge.ArticleNotFoundException;
 import dev.aifabric.course.support.knowledge.EvidenceOperationException;
@@ -31,5 +33,15 @@ public class ApiExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
         problem.setTitle("AI evidence operation failed");
         return problem;
+    }
+
+    @ExceptionHandler(ChatSessionAccessDeniedException.class)
+    ProblemDetail handleConversationAccessDenied(ChatSessionAccessDeniedException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Conversation access denied");
+    }
+
+    @ExceptionHandler(ChatSessionNotFoundException.class)
+    ProblemDetail handleConversationNotFound(ChatSessionNotFoundException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Conversation was not found");
     }
 }

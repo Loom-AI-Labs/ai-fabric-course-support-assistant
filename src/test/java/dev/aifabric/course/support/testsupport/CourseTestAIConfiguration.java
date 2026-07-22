@@ -2,6 +2,7 @@ package dev.aifabric.course.support.testsupport;
 
 import ai.fabric.dto.AIEmbeddingRequest;
 import ai.fabric.dto.AIEmbeddingResponse;
+import ai.fabric.dto.AIChatMessage;
 import ai.fabric.dto.AIGenerationRequest;
 import ai.fabric.dto.AIGenerationResponse;
 import ai.fabric.embedding.EmbeddingProvider;
@@ -40,6 +41,7 @@ public class CourseTestAIConfiguration {
         private final AtomicInteger generationCalls = new AtomicInteger();
         private final AtomicBoolean failNext = new AtomicBoolean();
         private volatile String lastPrompt;
+        private volatile List<AIChatMessage> lastMessages = List.of();
         private volatile String response = """
             {"answer":"Wait fifteen minutes, then use account recovery to verify your registered email and reset access.","citationIds":["policy-account-lockout-01"]}
             """;
@@ -60,6 +62,11 @@ public class CourseTestAIConfiguration {
             lastPrompt = (request != null ? request.getSystemPrompt() : "") + "\n"
                 + (request != null ? request.getContext() : "") + "\n"
                 + (request != null ? request.getPrompt() : "");
+            lastMessages = request != null && request.getMessages() != null
+                ? request.getMessages().stream()
+                    .map(message -> new AIChatMessage(message.getRole(), message.getContent()))
+                    .toList()
+                : List.of();
             if (failNext.getAndSet(false)) {
                 throw new IllegalStateException("deliberate test provider failure");
             }
@@ -115,6 +122,10 @@ public class CourseTestAIConfiguration {
             return lastPrompt;
         }
 
+        public List<AIChatMessage> lastMessages() {
+            return lastMessages;
+        }
+
         public void failNext() {
             failNext.set(true);
         }
@@ -127,6 +138,7 @@ public class CourseTestAIConfiguration {
             generationCalls.set(0);
             failNext.set(false);
             lastPrompt = null;
+            lastMessages = List.of();
             response = """
                 {"answer":"Wait fifteen minutes, then use account recovery to verify your registered email and reset access.","citationIds":["policy-account-lockout-01"]}
                 """;

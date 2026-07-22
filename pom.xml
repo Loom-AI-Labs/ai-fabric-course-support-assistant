@@ -84,6 +84,10 @@
             <artifactId>ai-fabric-curated-support</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.github.loom-ai-labs</groupId>
+            <artifactId>ai-fabric-chat-session</artifactId>
+        </dependency>
+        <dependency>
             <groupId>ai.djl.huggingface</groupId>
             <artifactId>tokenizers</artifactId>
             <version>${djl.version}</version>

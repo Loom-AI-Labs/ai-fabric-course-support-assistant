@@ -67,6 +67,21 @@ public class SupportTicketService {
         return project(ticketRepository.save(ticket));
     }
 
+    @Transactional
+    public TicketView escalateForCurrentCustomer(String ticketNumber, String customerId, String tenantId) {
+        requireCurrentCustomer(customerId, tenantId);
+        if (!StringUtils.hasText(ticketNumber)) {
+            throw new IllegalArgumentException("ticket number is required");
+        }
+        SupportTicket ticket = ticketRepository.findByIdAndTenantIdAndCustomerId(
+                ticketNumber.trim().toUpperCase(Locale.ROOT), tenantId.trim(), customerId.trim())
+            .orElseThrow(() -> new TicketAccessDeniedException("Ticket was not found for the current customer"));
+        if (!"ESCALATED".equals(ticket.getStatus())) {
+            ticket.setStatus("ESCALATED");
+        }
+        return project(ticketRepository.save(ticket));
+    }
+
     private CustomerAccount requireCurrentCustomer(String customerId, String tenantId) {
         if (!StringUtils.hasText(customerId) || !StringUtils.hasText(tenantId)) {
             throw new TicketAccessDeniedException("Authenticated customer and tenant are required");

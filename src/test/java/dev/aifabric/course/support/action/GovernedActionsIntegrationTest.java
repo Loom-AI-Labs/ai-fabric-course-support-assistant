@@ -82,6 +82,14 @@ class GovernedActionsIntegrationTest {
         assertThat(write.getRequiredParameters()).containsExactlyInAnyOrder("subject", "description");
         assertThat(write.getParameters()).doesNotContainKeys(
             "userId", "tenantId", "customerId", "conversationId", "sessionId");
+
+        AIActionMetaData escalation = actionRegistry.findMetadata("escalate_support_ticket").orElseThrow();
+        assertThat(escalation.getAccessMode().name()).isEqualTo("WRITE_ONLY");
+        assertThat(escalation.isConfirmationRequired()).isTrue();
+        assertThat(escalation.getParameters()).containsOnlyKeys("ticketNumber");
+        assertThat(escalation.getRequiredParameters()).containsExactly("ticketNumber");
+        assertThat(escalation.getParameters()).doesNotContainKeys(
+            "userId", "tenantId", "customerId", "conversationId", "sessionId");
     }
 
     @Test
@@ -170,7 +178,8 @@ class GovernedActionsIntegrationTest {
             "anonymous-action-test",
             CoursePrincipal.anonymous("anonymous-session")
         );
-        assertThat(anonymous.result().getType()).isEqualTo(OrchestrationResultType.ACTION_DENIED);
+        assertThat(anonymous.result().getType()).isEqualTo(OrchestrationResultType.ERROR);
+        assertThat(anonymous.result().getErrorCode()).isEqualTo("ACCESS_DENIED");
         assertThat(ticketRepository.count()).isOne();
 
         generationProvider.response(actionIntent(
