@@ -1,0 +1,5 @@
+@baseUrl = http://localhost:8080
+
+### Safe prompt-bundle diagnostics: versions, never prompt bodies
+GET {{baseUrl}}/api/demo/prompts
+

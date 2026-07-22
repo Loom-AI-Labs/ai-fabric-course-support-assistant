@@ -119,15 +119,23 @@ jq -e 'all(.[]; (.safeContent | contains("alex.private@example.com") | not) and 
 
 curl --fail --silent --show-error "${BASE_URL}/api/demo/readiness" \
   >"${REPORT_DIR}/readiness.json" || fail "readiness failed"
-jq -e '.checkpoint == "course-0.3.3-p02-modes-positions"
+curl --fail --silent --show-error "${BASE_URL}/api/demo/prompts" \
+  >"${REPORT_DIR}/prompt-posture.json" || fail "prompt posture failed"
+jq -e '.candidateVersions == ["v1-course-support", "v1-support", "v1"]
+  and .resolvedVersions["intent-classifier"] == "v1-course-support"
+  and .resolvedVersions["support-answer"] == "v1-course-support"
+  and .resolvedVersions["action-selector"] == "v1"' \
+  "${REPORT_DIR}/prompt-posture.json" >/dev/null || fail "prompt overlay resolution is incomplete"
+jq -e '.checkpoint == "course-0.3.3-p03-prompt-overlays"
   and .indexedVectors == 9
   and .indexedMessageVectors == 1
   and .capabilities.tenantSecurity == true
   and .capabilities.piiProtection == true
-  and .capabilities.modeRouting == true' \
+  and .capabilities.modeRouting == true
+  and .capabilities.promptOverlays == true' \
   "${REPORT_DIR}/readiness.json" >/dev/null || fail "readiness contract is incomplete"
 jq -e '.status == "UP"
-  and .checkpoint == "course-0.3.3-p02-modes-positions"
+  and .checkpoint == "course-0.3.3-p03-prompt-overlays"
   and .version != "unknown"
   and .aiFabricVersion == "0.3.3"
   and .commit != "unknown"
@@ -148,7 +156,7 @@ fi
 
 jq -n \
   --arg status PASS \
-  --arg checkpoint course-0.3.3-p02-modes-positions \
+  --arg checkpoint course-0.3.3-p03-prompt-overlays \
   --arg profile local \
   --arg unauthenticatedStatus "${unauthenticated_status}" \
   --arg invalidCredentialStatus "${invalid_status}" \

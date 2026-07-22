@@ -3,6 +3,7 @@ package dev.aifabric.course.support.web;
 import dev.aifabric.course.support.demo.CourseDataService;
 import dev.aifabric.course.support.demo.CourseDeploymentInfoService;
 import dev.aifabric.course.support.demo.CourseReadinessService;
+import dev.aifabric.course.support.demo.CoursePromptDiagnosticsService;
 import dev.aifabric.course.support.knowledge.KnowledgeEvidenceService;
 import dev.aifabric.course.support.message.SupportMessageService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,17 +20,20 @@ public class DemoController {
     private final CourseReadinessService readinessService;
     private final KnowledgeEvidenceService evidenceService;
     private final SupportMessageService messageService;
+    private final CoursePromptDiagnosticsService promptDiagnosticsService;
 
     public DemoController(CourseDataService dataService,
                           CourseDeploymentInfoService deploymentInfoService,
                           CourseReadinessService readinessService,
                           KnowledgeEvidenceService evidenceService,
-                          SupportMessageService messageService) {
+                          SupportMessageService messageService,
+                          CoursePromptDiagnosticsService promptDiagnosticsService) {
         this.dataService = dataService;
         this.deploymentInfoService = deploymentInfoService;
         this.readinessService = readinessService;
         this.evidenceService = evidenceService;
         this.messageService = messageService;
+        this.promptDiagnosticsService = promptDiagnosticsService;
     }
 
     @GetMapping("/health")
@@ -64,5 +68,10 @@ public class DemoController {
     @GetMapping("/readiness")
     public CourseReadinessService.ReadinessResponse readiness() {
         return readinessService.readiness();
+    }
+
+    @GetMapping("/prompts")
+    public CoursePromptDiagnosticsService.PromptPosture prompts() {
+        return promptDiagnosticsService.posture();
     }
 }

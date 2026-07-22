@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CourseReadinessService {
 
-    public static final String CHECKPOINT = "course-0.3.3-p02-modes-positions";
+    public static final String CHECKPOINT = "course-0.3.3-p03-prompt-overlays";
 
     private final CourseDataService dataService;
     private final Environment environment;
@@ -70,6 +70,7 @@ public class CourseReadinessService {
             && !piiProperties.isExposeOriginalPayloadInResult()
             && !piiProperties.isStoreEncryptedOriginal());
         capabilities.put("modeRouting", true);
+        capabilities.put("promptOverlays", true);
 
         return new ReadinessResponse(
             CHECKPOINT,

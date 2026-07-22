@@ -40,9 +40,31 @@ class CoursePromptOverlayContractTest {
             .contains("it must never turn a bare acknowledgement into another write action");
 
         var supportAnswer = promptTemplateResolver.resolve("rag/generation", "answer");
-        assertThat(supportAnswer.template().key().version()).isEqualTo("v1-support");
+        assertThat(supportAnswer.template().key().version()).isEqualTo("v1-course-support");
+        assertThat(supportAnswer.template().template())
+            .contains("Treat the evidence as the complete factual boundary")
+            .contains("Do not claim that a write occurred unless the provided action result proves it");
 
         var actionSelector = promptTemplateResolver.resolve("intent-extraction/multi-step", "select-actions");
         assertThat(actionSelector.template().key().version()).isEqualTo("v1");
+    }
+
+    @Test
+    void overlayResourcesArePackagedAndDiagnosticsExposeVersionsWithoutPromptBodies() {
+        assertThat(getClass().getResource(
+            "/prompts/rag/generation/v1-course-support/answer.md")).isNotNull();
+
+        dev.aifabric.course.support.demo.CoursePromptDiagnosticsService.PromptPosture posture =
+            new dev.aifabric.course.support.demo.CoursePromptDiagnosticsService(
+                bundleProperties, promptTemplateResolver).posture();
+
+        assertThat(posture.candidateVersions())
+            .containsExactly("v1-course-support", "v1-support", "v1");
+        assertThat(posture.resolvedVersions())
+            .containsEntry("intent-classifier", "v1-course-support")
+            .containsEntry("compound-intent", "v1-course-support")
+            .containsEntry("support-answer", "v1-course-support")
+            .containsEntry("action-selector", "v1");
+        assertThat(posture.toString()).doesNotContain("Course support answer rules");
     }
 }
