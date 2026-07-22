@@ -1,0 +1,11 @@
+### Reset the course dataset
+POST http://localhost:8080/api/demo/reset
+
+### Seed source records without AI indexing
+POST http://localhost:8080/api/demo/seed
+
+### Inspect source and capability readiness
+GET http://localhost:8080/api/demo/readiness
+
+### Expected at starter: HTTP 501
+GET http://localhost:8080/api/knowledge/search?q=How can I recover access to my account
