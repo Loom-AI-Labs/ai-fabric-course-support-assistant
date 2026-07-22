@@ -53,7 +53,7 @@ class CourseApiTest {
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-05-security"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-06-tested-solution"))
             .andExpect(jsonPath("$.sourceRecords.articles").value(9))
             .andExpect(jsonPath("$.indexedVectors").value(0))
             .andExpect(jsonPath("$.capabilities.semanticSearch").value(true))
@@ -84,6 +84,24 @@ class CourseApiTest {
             .andExpect(jsonPath("$.evidence[0].metadata.raw").doesNotExist())
             .andExpect(jsonPath("$.evidence[0].content").value(org.hamcrest.Matchers.not(
                 org.hamcrest.Matchers.containsString("fraud review"))));
+    }
+
+    @Test
+    void healthReportsBuildAndProviderPostureWithoutCredentials() throws Exception {
+        mockMvc.perform(get("/api/demo/health"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("UP"))
+            .andExpect(jsonPath("$.service").value("ai-fabric-course-support-assistant"))
+            .andExpect(jsonPath("$.version").isNotEmpty())
+            .andExpect(jsonPath("$.aiFabricVersion").value("0.3.3"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-06-tested-solution"))
+            .andExpect(jsonPath("$.provider.mode").value("deterministic-test"))
+            .andExpect(jsonPath("$.provider.generation").value("course-test"))
+            .andExpect(jsonPath("$.provider.embedding").value("course-test"))
+            .andExpect(jsonPath("$.provider.vector").value("memory"))
+            .andExpect(jsonPath("$.provider.fallbackEnabled").value(false))
+            .andExpect(jsonPath("$.openAiApiKey").doesNotExist())
+            .andExpect(jsonPath("$.courseToken").doesNotExist());
     }
 
     @Test

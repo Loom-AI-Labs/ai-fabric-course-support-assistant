@@ -9,27 +9,43 @@ privacy, and release verification. Each immutable `course-0.3.3-*` tag is a less
 
 ## Current Checkpoint
 
-This checkpoint adds tenant security and fail-closed privacy while preserving semantic search,
-evidence-grounded RAG, governed actions, and backend-owned memory. The server resolves identity
-from bearer credentials, adds exact tenant and visibility filters to retrieval, verifies every hit
-again before generation, and denies cross-tenant actions before confirmation. Explicit message
-intake, orchestration, chat history, direct RAG, and generated output all pass through AI Fabric PII
-redaction without retaining or returning raw originals.
+This final Core checkpoint turns the complete vertical slice into reproducible release evidence.
+The normal Maven gate runs 40 deterministic tests without API keys. A packaged-runtime script then
+starts the executable JAR with real ONNX embeddings and Lucene storage, exercises authentication,
+tenant isolation, indexing, search, and PII redaction over HTTP, and retains machine-readable
+evidence. `/api/demo/health` reports source-derived build identity and the configured provider
+posture without exposing credentials.
 
 ## Requirements
 
 - Java 21
 - Maven 3.9+, or the included Maven wrapper
 
-## Run Tenant Security And Privacy
+## Run The Final Release Gate
 
 ```bash
 ./mvnw clean verify
 ./scripts/download-onnx-model.sh
+COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-packaged.sh
+```
+
+The packaged script normally runs `clean package` itself. `COURSE_SMOKE_USE_EXISTING_JAR=true` is
+safe here because the immediately preceding `clean verify` already ran all tests and produced the
+JAR. The evidence is written to `target/course-release-evidence/`.
+
+Inspect the packaged result:
+
+```bash
+jq . target/course-release-evidence/packaged-smoke-summary.json
+```
+
+For an optional live OpenAI exercise after the keyless gate:
+
+```bash
 OPENAI_API_KEY=<set-locally> ./mvnw spring-boot:run -Dspring-boot.run.profiles=openai
 ```
 
-Then inspect the baseline:
+Then inspect the application manually:
 
 ```bash
 export COURSE_TOKEN=course-alex-local-token
@@ -41,6 +57,7 @@ curl -s -X POST http://localhost:8080/api/assistant/query \
   -d '{"message":"What should I do if failed sign-ins locked me out?"}'
 curl -s -X POST http://localhost:8080/api/demo/index
 curl -s http://localhost:8080/api/demo/readiness
+curl -s http://localhost:8080/api/demo/health
 curl -s -X POST http://localhost:8080/api/assistant/query \
   -H "Authorization: Bearer $COURSE_TOKEN" \
   -H 'Content-Type: application/json' \
@@ -68,8 +85,9 @@ curl -s -X POST http://localhost:8080/api/support/messages \
 ```
 
 The RAG flow remains available at `/api/assistant/query`. The governed and conversational flow uses
-`/api/assistant/orchestrate`; copyable identity, tenant-isolation, pre-confirmation denial, and PII
-scenarios are in `requests/05-tenant-security-privacy.http`.
+`/api/assistant/orchestrate`; copyable identity, tenant-isolation, pre-confirmation denial, PII, and
+release scenarios are in `requests/05-tenant-security-privacy.http` and
+`requests/06-test-and-ship.http`.
 
 The default local credentials exist only to make the course reproducible. Alex belongs to
 `tenant-blue`; Riley belongs to `tenant-red`. Set `COURSE_ALEX_TOKEN` and `COURSE_RILEY_TOKEN` to
@@ -93,6 +111,11 @@ generation providers without pretending to be live AI. They inject valid structu
 exercise the real AI Fabric pipeline, JPA chat storage, role-aware history, session-backed pending
 store, registry, annotations, argument binder, authorization hooks, domain transactions, exact
 metadata filtering, post-hit verification, and PII processing.
+
+`release-evidence.md` maps indexing, RAG, actions, memory, tenant security, privacy, build identity,
+and packaged runtime to success, failure, and forbidden-side-effect proof. Optional OpenAI,
+managed-vector, and deployed-frontend rows remain explicitly separate; a conditional or unexecuted
+row is never presented as a pass.
 
 `@ActionAllowed` validates an explicit ticket target before AI Fabric creates confirmation state.
 The domain transaction validates ownership again before mutation. Retrieval follows the same
@@ -150,8 +173,10 @@ confirmation state, and provider integration as those capabilities are introduce
 - `requests/` contains copyable HTTP scenarios.
 - `docs/conversation-memory-contract.md` traces memory, ownership, bounds, and transient requests.
 - `docs/security-privacy-contract.md` traces verified identity, tenant evidence, actions, and PII.
+- `release-evidence.md` maps each release claim to executable proof.
 - `src/main/resources/prompts/` contains the narrow, tested course-support prompt overlay.
 - `scripts/reset-course.sh` restores the deterministic fixture state.
-- `.github/workflows/verify.yml` proves the repository builds independently from Maven Central.
+- `scripts/smoke-packaged.sh` proves the packaged ONNX/Lucene application over HTTP.
+- `.github/workflows/verify.yml` runs both gates and retains their reports.
 
 The learner repository never depends on a framework source checkout or unpublished example module.

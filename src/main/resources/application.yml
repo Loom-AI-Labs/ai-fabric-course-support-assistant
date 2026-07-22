@@ -2,6 +2,8 @@ server:
   port: ${PORT:8080}
 
 course:
+  release:
+    runtime-mode: ${COURSE_RUNTIME_MODE:retrieval-only}
   security:
     principals:
       - token: ${COURSE_ALEX_TOKEN:course-alex-local-token}
@@ -93,6 +95,12 @@ ai:
             - knowledge-article
 
 management:
+  info:
+    build:
+      enabled: true
+    git:
+      enabled: true
+      mode: full
   endpoints:
     web:
       exposure:

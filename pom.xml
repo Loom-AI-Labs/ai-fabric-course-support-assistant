@@ -158,9 +158,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <mainClass>dev.aifabric.course.support.SupportAssistantApplication</mainClass>
-                </configuration>
                 <executions>
                     <execution>
                         <goals>
@@ -168,6 +165,28 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <mainClass>dev.aifabric.course.support.SupportAssistantApplication</mainClass>
+                    <additionalProperties>
+                        <aiFabricVersion>${ai-fabric.version}</aiFabricVersion>
+                    </additionalProperties>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>9.2.0</version>
+                <configuration>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+                    <includeOnlyProperties>
+                        <includeOnlyProperty>^git.branch$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.commit.id$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.commit.time$</includeOnlyProperty>
+                    </includeOnlyProperties>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+                </configuration>
             </plugin>
         </plugins>
     </build>

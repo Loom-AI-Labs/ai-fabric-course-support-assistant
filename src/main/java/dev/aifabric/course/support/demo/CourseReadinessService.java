@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class CourseReadinessService {
 
+    public static final String CHECKPOINT = "course-0.3.3-06-tested-solution";
+
     private final CourseDataService dataService;
     private final Environment environment;
     private final VectorDatabaseService vectorDatabaseService;
@@ -69,7 +71,7 @@ public class CourseReadinessService {
             && !piiProperties.isStoreEncryptedOriginal());
 
         return new ReadinessResponse(
-            "course-0.3.3-05-security",
+            CHECKPOINT,
             dataService.snapshot(),
             vectorDatabaseService.getVectorCountByEntityType(KnowledgeArticle.ENTITY_TYPE),
             vectorDatabaseService.getVectorCountByEntityType(SupportMessage.ENTITY_TYPE),

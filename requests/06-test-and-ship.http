@@ -1,0 +1,39 @@
+@baseUrl = http://localhost:8080
+@alexToken = course-alex-local-token
+@rileyToken = course-riley-local-token
+
+### Source-derived artifact identity and configured provider posture
+GET {{baseUrl}}/api/demo/health
+
+### Capability and data readiness are separate from artifact identity
+GET {{baseUrl}}/api/demo/readiness
+
+### Missing credentials are a real denial, not an empty success
+GET {{baseUrl}}/api/knowledge/articles
+
+### Reset and rebuild the deterministic evidence fixture
+POST {{baseUrl}}/api/demo/reset
+
+###
+POST {{baseUrl}}/api/demo/seed
+
+###
+POST {{baseUrl}}/api/demo/index
+
+### Spoofed tenant input cannot override the authenticated principal
+GET {{baseUrl}}/api/knowledge/search?q=restore%20VPN%20access%20and%20refresh%20certificate
+Authorization: Bearer {{alexToken}}
+X-Tenant-Id: tenant-red
+
+### The other identity receives only its own tenant-visible evidence
+GET {{baseUrl}}/api/knowledge/search?q=restore%20VPN%20access%20and%20enroll%20replacement%20device
+Authorization: Bearer {{rileyToken}}
+
+### Raw PII is redacted before persistence and indexing
+POST {{baseUrl}}/api/support/messages
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "content": "Contact alex.private@example.com about SSN 123-45-6789"
+}

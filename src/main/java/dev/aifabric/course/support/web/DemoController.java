@@ -1,6 +1,7 @@
 package dev.aifabric.course.support.web;
 
 import dev.aifabric.course.support.demo.CourseDataService;
+import dev.aifabric.course.support.demo.CourseDeploymentInfoService;
 import dev.aifabric.course.support.demo.CourseReadinessService;
 import dev.aifabric.course.support.knowledge.KnowledgeEvidenceService;
 import dev.aifabric.course.support.message.SupportMessageService;
@@ -14,17 +15,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class DemoController {
 
     private final CourseDataService dataService;
+    private final CourseDeploymentInfoService deploymentInfoService;
     private final CourseReadinessService readinessService;
     private final KnowledgeEvidenceService evidenceService;
     private final SupportMessageService messageService;
 
-    public DemoController(CourseDataService dataService, CourseReadinessService readinessService,
+    public DemoController(CourseDataService dataService,
+                          CourseDeploymentInfoService deploymentInfoService,
+                          CourseReadinessService readinessService,
                           KnowledgeEvidenceService evidenceService,
                           SupportMessageService messageService) {
         this.dataService = dataService;
+        this.deploymentInfoService = deploymentInfoService;
         this.readinessService = readinessService;
         this.evidenceService = evidenceService;
         this.messageService = messageService;
+    }
+
+    @GetMapping("/health")
+    public CourseDeploymentInfoService.DeploymentHealth health() {
+        return deploymentInfoService.health();
     }
 
     @PostMapping("/reset")

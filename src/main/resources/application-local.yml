@@ -10,3 +10,7 @@ ai:
     type: lucene
     lucene:
       index-path: ${AI_FABRIC_LUCENE_INDEX_PATH:./data/lucene-knowledge-384}
+
+course:
+  release:
+    runtime-mode: local-retrieval

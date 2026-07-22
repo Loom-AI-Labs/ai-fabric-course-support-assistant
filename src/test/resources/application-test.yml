@@ -14,3 +14,7 @@ ai:
       enable-embeddings: true
       enable-search: true
       enable-rag: true
+
+course:
+  release:
+    runtime-mode: deterministic-test
