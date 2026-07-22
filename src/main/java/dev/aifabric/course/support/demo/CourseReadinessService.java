@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CourseReadinessService {
 
-    public static final String CHECKPOINT = "course-0.3.3-p06-rag-quality";
+    public static final String CHECKPOINT = "course-0.3.3-p07-qdrant";
 
     private final CourseDataService dataService;
     private final Environment environment;
@@ -74,6 +74,9 @@ public class CourseReadinessService {
         capabilities.put("migrationBackfill", true);
         capabilities.put("liveDataSync", true);
         capabilities.put("ragQualityGates", true);
+        capabilities.put("managedVectorProfile", true);
+
+        Map<String, Object> vectorDiagnostics = vectorDatabaseService.adminDiagnostics();
 
         return new ReadinessResponse(
             CHECKPOINT,
@@ -81,8 +84,44 @@ public class CourseReadinessService {
             vectorDatabaseService.getVectorCountByEntityType(KnowledgeArticle.ENTITY_TYPE),
             vectorDatabaseService.getVectorCountByEntityType(SupportMessage.ENTITY_TYPE),
             List.of(environment.getActiveProfiles()),
-            Map.copyOf(capabilities)
+            Map.copyOf(capabilities),
+            new VectorReadiness(
+                textOr(vectorDiagnostics.get("provider"), vectorDatabaseService.vectorProviderName()),
+                textOr(vectorDiagnostics.get("nativeClient"), vectorDatabaseService.vectorNativeClient()),
+                vectorDatabaseService.supportsSearchMetadataFiltering(),
+                vectorDatabaseService.supportsScanMetadataFiltering(),
+                vectorDatabaseService.supportsExactFetchById(),
+                vectorDatabaseService.supportsClearByEntityType(),
+                vectorDatabaseService.supportsEfficientEntityTypeCount(),
+                vectorDatabaseService.vectorDurableStorage(),
+                vectorDatabaseService.vectorProductionProfileSafe(),
+                vectorDatabaseService.vectorSearchFilterMode(),
+                vectorDatabaseService.vectorScanFilterMode(),
+                vectorDatabaseService.vectorMetadataFilterSubset(),
+                vectorDatabaseService.vectorConsistencyModel(),
+                text(vectorDiagnostics.get("transport")),
+                text(vectorDiagnostics.get("scopePrefix")),
+                textList(vectorDiagnostics.get("verifiedPayloadIndexes"))
+            )
         );
+    }
+
+    private String text(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private String textOr(Object value, String fallback) {
+        String resolved = text(value);
+        return resolved.isBlank() ? fallback : resolved;
+    }
+
+    private List<String> textList(Object value) {
+        if (!(value instanceof Iterable<?> values)) {
+            return List.of();
+        }
+        java.util.ArrayList<String> result = new java.util.ArrayList<>();
+        values.forEach(item -> result.add(String.valueOf(item)));
+        return List.copyOf(result);
     }
 
     public record ReadinessResponse(
@@ -91,7 +130,31 @@ public class CourseReadinessService {
         long indexedVectors,
         long indexedMessageVectors,
         java.util.List<String> activeProfiles,
-        Map<String, Boolean> capabilities
+        Map<String, Boolean> capabilities,
+        VectorReadiness vectorProvider
     ) {
+    }
+
+    public record VectorReadiness(
+        String provider,
+        String nativeClient,
+        boolean searchMetadataFiltering,
+        boolean scanMetadataFiltering,
+        boolean exactFetchById,
+        boolean clearByEntityType,
+        boolean efficientEntityTypeCount,
+        boolean durableStorage,
+        boolean productionProfileSafe,
+        String searchFilterMode,
+        String scanFilterMode,
+        String metadataFilterSubset,
+        String consistencyModel,
+        String transport,
+        String scopePrefix,
+        List<String> verifiedPayloadIndexes
+    ) {
+        public VectorReadiness {
+            verifiedPayloadIndexes = verifiedPayloadIndexes == null ? List.of() : List.copyOf(verifiedPayloadIndexes);
+        }
     }
 }

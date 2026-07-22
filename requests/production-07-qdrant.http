@@ -1,0 +1,42 @@
+@baseUrl = http://localhost:8080
+@alex = course-alex-local-token
+@riley = course-riley-local-token
+
+### Start first: docker compose -f compose.qdrant.yml up -d
+### Then run: ./mvnw spring-boot:run -Dspring-boot.run.profiles=qdrant
+
+### Seed source rows
+POST {{baseUrl}}/api/demo/seed
+
+### Index the same application projection into Qdrant
+POST {{baseUrl}}/api/demo/index
+
+### Inspect typed provider capabilities and vector counts
+GET {{baseUrl}}/api/demo/readiness
+
+### Prove Tenant Blue retrieval
+GET {{baseUrl}}/api/quality/rag/golden
+Authorization: Bearer {{alex}}
+
+### Prove Tenant Red retrieval and exclusions
+GET {{baseUrl}}/api/quality/rag/golden
+Authorization: Bearer {{riley}}
+
+### Upsert through the existing trusted Data Sync boundary
+POST {{baseUrl}}/api/knowledge/articles
+Authorization: Bearer {{alex}}
+Content-Type: application/json
+
+{
+  "id": "article-qdrant-sync",
+  "title": "Register a hardware key",
+  "body": "Register and verify the hardware key before revoking the previous method.",
+  "category": "authentication"
+}
+
+### Delete source plus derived Qdrant evidence
+DELETE {{baseUrl}}/api/knowledge/articles/article-qdrant-sync
+Authorization: Bearer {{alex}}
+
+### Inspect Qdrant directly; collection size must be 384
+GET http://localhost:6333/collections/course_prod07__knowledge-article

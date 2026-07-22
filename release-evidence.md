@@ -1,8 +1,8 @@
 # Course Support Assistant Release Evidence
 
-Candidate checkpoint: `course-0.3.3-p06-rag-quality`
+Candidate checkpoint: `course-0.3.3-p07-qdrant`
 Framework baseline: AI Fabric `0.3.3`  
-Required release posture: Java 21, local ONNX embeddings, Lucene vectors, no generation fallback
+Required release posture: Java 21, local ONNX embeddings, Lucene plus Docker Qdrant gates, no generation fallback
 
 This record maps every Core claim to executable evidence. CI retains the Surefire reports and the
 packaged-smoke artifacts for the exact source commit. A missing or skipped row is not a pass.
@@ -20,6 +20,7 @@ packaged-smoke artifacts for the exact source commit. A missing or skipped row i
 | Migration backfill | `KnowledgeMigrationIntegrationTest` | denied admin access, missing jobs, invalid transitions, and cancellation remain visible | private notes stay out of queue payloads and an idempotent rerun adds no duplicate vector work |
 | Live Data Sync | `KnowledgeDataSyncIntegrationTest` | unauthorized/raw access, invalid projection, batch limit, and partial failure are explicit | failed upsert rolls back source; update replaces stale content; delete removes source and vector |
 | RAG quality | `RagQualityIntegrationTest`, `CoursePromptOverlayContractTest`, and `SupportAssistantServiceTest` | no-source, insufficient-context, retrieval failure, generation failure, and stale-source cases remain visible | expected/forbidden IDs and source fragments are checked before optional model observation; prompt bodies are not exposed |
+| Managed Qdrant | `QdrantProfileConfigurationTest` and `scripts/smoke-qdrant.sh` | an unreachable configured Qdrant returns 503 with no Lucene fallback | Docker proof checks dimensions, payload schema, tenant filters, stable update identity, delete count, and typed diagnostics |
 | Build identity | `CourseDeploymentInfoServiceTest` and `CourseApiTest.healthReportsBuildAndProviderPostureWithoutCredentials` | unavailable source metadata is reported as `unknown` | health never exposes credentials |
 | Packaged runtime | `scripts/smoke-packaged.sh` | missing/invalid credentials return 401 and every failed assertion exits non-zero | cross-tenant evidence and raw PII are absent from responses and logs |
 
@@ -29,6 +30,7 @@ packaged-smoke artifacts for the exact source commit. A missing or skipped row i
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ./scripts/download-onnx-model.sh
 COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-packaged.sh
+COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-qdrant.sh
 ```
 
 The deterministic suite uses explicit test-only providers and runs the real AI Fabric pipeline,
@@ -49,7 +51,7 @@ real Lucene storage. It records:
 | Evidence class | Core requirement | Status rule |
 | --- | --- | --- |
 | Keyed OpenAI | Optional for the keyless Core completion path | Record `PASS`, `FAIL`, or `NOT RUN`; never infer it from local tests |
-| Managed vector containers | Not applicable to the local Lucene checkpoint | Required only when a managed adapter becomes part of the release claim |
+| Managed vector containers | Required local Qdrant gate | Retain `qdrant-smoke-summary.json`; Qdrant Cloud remains optional and separately labelled |
 | Deployed frontend | Not applicable to this backend learner repository | Verify public HTML, hashed asset, backend commit, and browser network response separately when a UI is deployed |
 
 To add OpenAI evidence, run the `openai` profile with a runtime-only key and record the provider,

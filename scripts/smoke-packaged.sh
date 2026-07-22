@@ -326,7 +326,7 @@ jq -e '.passed == true and .supportAnswerVersion == "v1-course-support"
   and .baseFallbackVersion == "v1" and .querySlotPresent == true
   and .contextSlotPresent == true' \
   "${REPORT_DIR}/quality-prompt-contract.json" >/dev/null || fail "prompt structural regression gate failed"
-jq -e '.checkpoint == "course-0.3.3-p06-rag-quality"
+jq -e '.checkpoint == "course-0.3.3-p07-qdrant"
   and .indexedVectors == 9
   and .indexedMessageVectors == 1
   and .capabilities.tenantSecurity == true
@@ -335,10 +335,15 @@ jq -e '.checkpoint == "course-0.3.3-p06-rag-quality"
   and .capabilities.promptOverlays == true
   and .capabilities.migrationBackfill == true
   and .capabilities.liveDataSync == true
-  and .capabilities.ragQualityGates == true' \
+  and .capabilities.ragQualityGates == true
+  and .capabilities.managedVectorProfile == true
+  and .vectorProvider.provider == "lucene"
+  and .vectorProvider.nativeClient == "apache-lucene"
+  and .vectorProvider.searchMetadataFiltering == true
+  and .vectorProvider.durableStorage == true' \
   "${REPORT_DIR}/readiness.json" >/dev/null || fail "readiness contract is incomplete"
 jq -e '.status == "UP"
-  and .checkpoint == "course-0.3.3-p06-rag-quality"
+  and .checkpoint == "course-0.3.3-p07-qdrant"
   and .version != "unknown"
   and .aiFabricVersion == "0.3.3"
   and .commit != "unknown"
@@ -359,7 +364,7 @@ fi
 
 jq -n \
   --arg status PASS \
-  --arg checkpoint course-0.3.3-p06-rag-quality \
+  --arg checkpoint course-0.3.3-p07-qdrant \
   --arg profile local \
   --arg unauthenticatedStatus "${unauthenticated_status}" \
   --arg invalidCredentialStatus "${invalid_status}" \

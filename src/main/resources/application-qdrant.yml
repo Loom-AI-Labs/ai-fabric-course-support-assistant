@@ -1,0 +1,32 @@
+ai:
+  providers:
+    llm-provider: ""
+    embedding-provider: onnx
+    enable-fallback: false
+    onnx:
+      model-path: ${AI_FABRIC_ONNX_MODEL_PATH:./models/embeddings/all-MiniLM-L6-v2.onnx}
+      tokenizer-path: ${AI_FABRIC_ONNX_TOKENIZER_PATH:./models/embeddings/tokenizer.json}
+    qdrant:
+      enabled: true
+      host: ${AI_PROVIDERS_QDRANT_HOST:127.0.0.1}
+      port: ${AI_PROVIDERS_QDRANT_PORT:6333}
+      grpc-port: ${AI_PROVIDERS_QDRANT_GRPC_PORT:6334}
+      api-key: ${AI_PROVIDERS_QDRANT_API_KEY:}
+      prefer-grpc: ${AI_PROVIDERS_QDRANT_PREFER_GRPC:false}
+      collection-prefix: ${AI_PROVIDERS_QDRANT_COLLECTION_PREFIX:course_prod07__}
+  vector-db:
+    type: qdrant
+    operations:
+      await-clear-consistency: true
+      await-clear-timeout-ms: 30000
+      fail-on-missing-payload-index: false
+  service:
+    features:
+      enable-generation: false
+      enable-embeddings: true
+      enable-search: true
+      enable-rag: true
+
+course:
+  release:
+    runtime-mode: qdrant-local

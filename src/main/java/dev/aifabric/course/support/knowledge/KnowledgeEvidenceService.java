@@ -48,8 +48,14 @@ public class KnowledgeEvidenceService {
 
     public IndexResponse indexAll() {
         List<KnowledgeArticle> articles = articleRepository.findAllByOrderByIdAsc();
-        articles.forEach(this::replaceVector);
-        return new IndexResponse(articles.size(), indexedCount());
+        try {
+            articles.forEach(this::replaceVector);
+            return new IndexResponse(articles.size(), indexedCount());
+        } catch (EvidenceOperationException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new EvidenceOperationException("Knowledge evidence provider is unavailable", exception);
+        }
     }
 
     public List<PublicArticle> articles(CoursePrincipal principal) {

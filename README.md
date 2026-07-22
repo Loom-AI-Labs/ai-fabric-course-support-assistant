@@ -10,12 +10,11 @@ tag is a lesson checkpoint.
 
 ## Current Checkpoint
 
-The sixth Production checkpoint turns RAG expectations into an executable quality gate. Authenticated
-golden suites assert expected evidence IDs, forbidden cross-tenant IDs, required source fragments,
-and stale fragments without comparing generated prose. Separate cases prove an empty index,
-insufficient context, fresh post-update evidence, overlay/base prompt structure, and visible provider
-failure. The packaged gate runs the scorecard with real ONNX embeddings and Lucene; no cloud key is
-required.
+The seventh Production checkpoint preserves the Support Knowledge Assistant contract while adding a
+Docker Qdrant profile beside Lucene. Typed readiness reports provider capabilities and transport;
+the Docker gate proves 384-dimensional collections, required payload indexing, tenant filters,
+golden quality cases, stable Data Sync upsert/delete, durability posture, and visible failure when
+Qdrant is unreachable. ONNX remains the embedding provider and no cloud key is required.
 
 ## Requirements
 
@@ -28,11 +27,15 @@ required.
 ./mvnw clean verify
 ./scripts/download-onnx-model.sh
 COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-packaged.sh
+COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-qdrant.sh
 ```
 
 The packaged script normally runs `clean package` itself. `COURSE_SMOKE_USE_EXISTING_JAR=true` is
 safe here because the immediately preceding `clean verify` already ran all tests and produced the
 JAR. The evidence is written to `target/course-release-evidence/`.
+
+The Qdrant script starts and removes a pinned local container. For manual exploration with durable
+local storage, use `docker compose -f compose.qdrant.yml up -d` and run the `qdrant` Spring profile.
 
 Inspect the packaged result:
 
@@ -208,6 +211,7 @@ tokenizer. They contain no ranking logic and do not replace AI Fabric's ONNX inf
 | `course-0.3.3-p04-migration-backfill` | Admin-scoped migration, durable indexing, readiness, and idempotent backfill |
 | `course-0.3.3-p05-live-data-sync` | Trusted create/update/delete synchronization, stable identity, and visible batch failure |
 | `course-0.3.3-p06-rag-quality` | Golden evidence IDs, tenant exclusions, freshness, no-source, and prompt regression gates |
+| `course-0.3.3-p07-qdrant` | Docker Qdrant provider parity, diagnostics, lifecycle, filtering, and visible outage proof |
 
 Do not move an existing checkpoint tag. Course corrections receive a new course patch version.
 
@@ -227,8 +231,10 @@ confirmation state, and provider integration as those capabilities are introduce
 - `requests/production-04-migration-backfill.http` exercises the migration lifecycle.
 - `requests/production-05-live-data-sync.http` exercises the trusted incremental sync lifecycle.
 - `requests/production-06-rag-quality.http` exercises deterministic RAG and prompt quality gates.
+- `requests/production-07-qdrant.http` exercises the same contract against local Qdrant.
 - `scripts/reset-course.sh` restores the deterministic fixture state.
 - `scripts/smoke-packaged.sh` proves the packaged ONNX/Lucene application over HTTP.
+- `scripts/smoke-qdrant.sh` proves provider parity and failure behavior against Docker Qdrant.
 - `.github/workflows/verify.yml` runs both gates and retains their reports.
 
 The learner repository never depends on a framework source checkout or unpublished example module.

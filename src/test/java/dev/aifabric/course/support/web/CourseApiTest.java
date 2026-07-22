@@ -53,7 +53,7 @@ class CourseApiTest {
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p06-rag-quality"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p07-qdrant"))
             .andExpect(jsonPath("$.sourceRecords.articles").value(9))
             .andExpect(jsonPath("$.indexedVectors").value(0))
             .andExpect(jsonPath("$.capabilities.semanticSearch").value(true))
@@ -61,7 +61,13 @@ class CourseApiTest {
             .andExpect(jsonPath("$.capabilities.governedActions").value(true))
             .andExpect(jsonPath("$.capabilities.conversationMemory").value(true))
             .andExpect(jsonPath("$.capabilities.tenantSecurity").value(true))
-            .andExpect(jsonPath("$.capabilities.piiProtection").value(true));
+            .andExpect(jsonPath("$.capabilities.piiProtection").value(true))
+            .andExpect(jsonPath("$.capabilities.ragQualityGates").value(true))
+            .andExpect(jsonPath("$.capabilities.managedVectorProfile").value(true))
+            .andExpect(jsonPath("$.vectorProvider.provider").value("memory"))
+            .andExpect(jsonPath("$.vectorProvider.searchMetadataFiltering").value(true))
+            .andExpect(jsonPath("$.vectorProvider.durableStorage").value(false))
+            .andExpect(jsonPath("$.vectorProvider.productionProfileSafe").value(false));
 
         mockMvc.perform(get("/api/knowledge/search")
                 .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
@@ -94,7 +100,7 @@ class CourseApiTest {
             .andExpect(jsonPath("$.service").value("ai-fabric-course-support-assistant"))
             .andExpect(jsonPath("$.version").isNotEmpty())
             .andExpect(jsonPath("$.aiFabricVersion").value("0.3.3"))
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p06-rag-quality"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p07-qdrant"))
             .andExpect(jsonPath("$.provider.mode").value("deterministic-test"))
             .andExpect(jsonPath("$.provider.orchestration").value("course-orchestration-test"))
             .andExpect(jsonPath("$.provider.orchestrationModel").value("course-test-orchestration"))

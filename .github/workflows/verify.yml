@@ -37,6 +37,11 @@ jobs:
         env:
           COURSE_SMOKE_USE_EXISTING_JAR: 'true'
         run: ./scripts/smoke-packaged.sh
+      - name: Smoke the local Qdrant profile
+        env:
+          COURSE_SMOKE_USE_EXISTING_JAR: 'true'
+          COURSE_QDRANT_IMAGE: qdrant/qdrant:v1.16.1
+        run: ./scripts/smoke-qdrant.sh
       - name: Retain deterministic and packaged-runtime evidence
         if: always()
         uses: actions/upload-artifact@v4
