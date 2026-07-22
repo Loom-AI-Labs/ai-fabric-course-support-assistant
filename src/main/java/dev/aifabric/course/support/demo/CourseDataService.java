@@ -56,7 +56,7 @@ public class CourseDataService {
         articleRepository.saveAll(seedArticles());
         policyRepository.saveAll(seedPolicies());
         ticketRepository.save(new SupportTicket(
-            "ticket-1001",
+            "T-1001",
             COURSE_TENANT,
             COURSE_CUSTOMER,
             "Verification email has not arrived",

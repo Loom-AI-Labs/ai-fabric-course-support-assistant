@@ -1,0 +1,50 @@
+### Seed the course customer and the existing ticket T-1001
+POST http://localhost:8080/api/demo/seed
+
+### Inspect the exact model-visible action allowlist
+GET http://localhost:8080/api/assistant/actions
+
+### Read action: no confirmation and no model-supplied identity
+POST http://localhost:8080/api/assistant/orchestrate
+Content-Type: application/json
+
+{
+  "message": "What is the status of ticket T-1001?",
+  "conversationId": "course-actions-read"
+}
+
+### Incomplete write: must clarify and create no pending action or ticket
+POST http://localhost:8080/api/assistant/orchestrate
+Content-Type: application/json
+
+{
+  "message": "Create a high-priority support ticket titled Account locked.",
+  "conversationId": "course-actions-write"
+}
+
+### Complete write: must return CONFIRMATION_REQUIRED without mutation
+POST http://localhost:8080/api/assistant/orchestrate
+Content-Type: application/json
+
+{
+  "message": "Create a high-priority ticket titled Account locked and explain that recovery emails never arrive.",
+  "conversationId": "course-actions-write"
+}
+
+### Confirm in the same owner and conversation: executes exactly once
+POST http://localhost:8080/api/assistant/orchestrate
+Content-Type: application/json
+
+{
+  "message": "yes",
+  "conversationId": "course-actions-write"
+}
+
+### Duplicate confirmation: must report that no pending action remains
+POST http://localhost:8080/api/assistant/orchestrate
+Content-Type: application/json
+
+{
+  "message": "yes",
+  "conversationId": "course-actions-write"
+}

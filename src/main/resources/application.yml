@@ -18,6 +18,8 @@ spring:
 
 ai:
   enabled: true
+  curated:
+    pack: support
   indexing:
     enabled: false
   config:
@@ -37,6 +39,26 @@ ai:
       enable-contextual-search: false
   pii-detection:
     enabled: false
+  orchestration:
+    action-param-provenance-mode: WARN
+    default-mode: support_assistant
+    strict-mode-routing: true
+    modes:
+      support_assistant:
+        actions-enabled: true
+        actions-preferred: true
+        retrieval-enabled: true
+        information-mode: DETERMINISTIC_RAG_GENERATE
+        suggestions-enabled: false
+        rag:
+          fanout-enabled: false
+          top-k-per-space: 5
+          similarity-threshold: 0.55
+          max-documents-returned-to-client: 5
+          max-documents-used-for-context: 5
+          max-context-chars: 4000
+          retrieval-vector-spaces-allowlist:
+            - knowledge-article
 
 management:
   endpoints:

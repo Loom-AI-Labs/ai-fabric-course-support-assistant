@@ -1,4 +1,7 @@
 ai:
+  intent-extraction:
+    progressive:
+      enabled: false
   providers:
     llm-provider: course-test
     embedding-provider: course-test

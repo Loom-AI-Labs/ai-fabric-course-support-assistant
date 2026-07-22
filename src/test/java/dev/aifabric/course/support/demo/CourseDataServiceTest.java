@@ -41,7 +41,7 @@ class CourseDataServiceTest {
         assertThat(articleRepository.findById("article-account-lockout")).isPresent();
         assertThat(policyRepository.findById("policy-privacy")).isPresent();
         assertThat(accountRepository.findById(CourseDataService.COURSE_CUSTOMER)).isPresent();
-        assertThat(ticketRepository.findById("ticket-1001")).isPresent();
+        assertThat(ticketRepository.findById("T-1001")).isPresent();
     }
 
     @Test

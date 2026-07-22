@@ -9,17 +9,18 @@ privacy, and release verification. Each immutable `course-0.3.3-*` tag is a less
 
 ## Current Checkpoint
 
-This checkpoint adds evidence-grounded generation after semantic retrieval. AI Fabric's
-`RAGProvider` retrieves and assembles approved context; the application then calls
-`AICoreService` for generation and validates the model's structured citation IDs against the
-retrieved evidence. Retrieval and generation remain independently visible.
+This checkpoint adds governed read and write actions while preserving the evidence-grounded RAG
+endpoint from the previous checkpoint. AI Fabric discovers an explicit action catalog, validates
+typed model parameters, denies anonymous writes, and owns pending confirmation state. The support
+application supplies trusted identity and tenant context, authorizes the current customer again in
+its transaction, performs the mutation, and returns a concise structured result.
 
 ## Requirements
 
 - Java 21
 - Maven 3.9+, or the included Maven wrapper
 
-## Run Evidence-Grounded RAG
+## Run Governed Actions
 
 ```bash
 ./mvnw clean verify
@@ -40,9 +41,23 @@ curl -s http://localhost:8080/api/demo/readiness
 curl -s -X POST http://localhost:8080/api/assistant/query \
   -H 'Content-Type: application/json' \
   -d '{"message":"What should I do if failed sign-ins locked me out?"}'
+curl -s http://localhost:8080/api/assistant/actions
+curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"What is the status of T-1001?","conversationId":"course-actions"}'
+curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"Create a high-priority ticket titled Account locked and explain that recovery emails never arrive.","conversationId":"course-actions"}'
+curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"yes","conversationId":"course-actions"}'
 ```
 
-The first assistant request returns `NO_EVIDENCE` and does not call the LLM because ordinary
+The RAG flow remains available at `/api/assistant/query`. The governed action flow uses
+`/api/assistant/orchestrate`; copyable read, clarification, rejection, confirmation, and duplicate
+confirmation requests are in `requests/03-governed-actions.http`.
+
+The first RAG request returns `NO_EVIDENCE` and does not call the LLM because ordinary
 database rows have not been indexed. The second returns `ANSWERED` with
 `policy-account-lockout-01` as validated evidence. `internalNotes` is deliberately not annotated
 and never enters vector content, the generation prompt, or the public response.
@@ -53,7 +68,13 @@ returns `RETRIEVAL_FAILED`; a provider or structured-citation failure returns `G
 with HTTP 503 and no canned answer.
 
 `./mvnw clean verify` needs no API key. Tests use explicitly labelled, test-only embedding and
-generation providers and prove the same public contracts without pretending to be live AI.
+generation providers and prove the same public contracts without pretending to be live AI. Action
+tests inject valid structured intents, then execute the real AI Fabric pipeline, registry, pending
+store, annotations, argument binder, authorization hooks, and JPA transaction.
+
+This checkpoint uses the core in-memory pending action store deliberately. It survives turns in one
+running process but not a restart or horizontal scale-out. The next checkpoint adds
+`ai-fabric-chat-session` and moves conversation and confirmation state into backend-owned storage.
 
 The `local` profile remains useful for retrieval-only exploration. It uses the real ONNX provider
 and Lucene with generation disabled. There is no runtime fixture or hidden fallback.
