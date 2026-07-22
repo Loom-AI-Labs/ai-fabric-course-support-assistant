@@ -1,6 +1,22 @@
 server:
   port: ${PORT:8080}
 
+course:
+  security:
+    principals:
+      - token: ${COURSE_ALEX_TOKEN:course-alex-local-token}
+        user-id: customer-alex
+        tenant-id: tenant-blue
+        session-id: course-session-alex
+        scopes: [support:read, support:write]
+        roles: [CUSTOMER]
+      - token: ${COURSE_RILEY_TOKEN:course-riley-local-token}
+        user-id: customer-riley
+        tenant-id: tenant-red
+        session-id: course-session-riley
+        scopes: [support:read, support:write]
+        roles: [CUSTOMER]
+
 spring:
   application:
     name: ai-fabric-course-support-assistant
@@ -43,7 +59,11 @@ ai:
       enable-hybrid-search: false
       enable-contextual-search: false
   pii-detection:
-    enabled: false
+    enabled: true
+    mode: REDACT
+    detection-direction: INPUT_OUTPUT
+    expose-original-payload-in-result: false
+    store-encrypted-original: false
   chat:
     enabled: true
     auto-create-sessions: true

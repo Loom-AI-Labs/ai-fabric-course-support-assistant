@@ -32,7 +32,8 @@ public class CreateSupportTicketActionHandler {
 
     @ActionAllowed
     public boolean allowed(ActionContext context) {
-        return context != null && ticketService.isKnownCustomerContext(
+        return ActionAuthorizationSupport.hasScopeAndRole(context, "support:write", "CUSTOMER")
+            && ticketService.isKnownCustomerContext(
             context.userId(), context.authContext().getTenantId());
     }
 

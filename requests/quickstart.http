@@ -1,3 +1,5 @@
+@alexToken = course-alex-local-token
+
 ### Reset the course dataset
 POST http://localhost:8080/api/demo/reset
 
@@ -9,3 +11,4 @@ GET http://localhost:8080/api/demo/readiness
 
 ### Expected at starter: HTTP 501
 GET http://localhost:8080/api/knowledge/search?q=How can I recover access to my account
+Authorization: Bearer {{alexToken}}

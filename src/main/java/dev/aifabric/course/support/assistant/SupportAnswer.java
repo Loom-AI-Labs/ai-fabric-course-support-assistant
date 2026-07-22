@@ -15,7 +15,8 @@ public record SupportAnswer(
         ANSWERED,
         NO_EVIDENCE,
         RETRIEVAL_FAILED,
-        GENERATION_FAILED
+        GENERATION_FAILED,
+        PRIVACY_FAILED
     }
 
     public record EvidenceItem(

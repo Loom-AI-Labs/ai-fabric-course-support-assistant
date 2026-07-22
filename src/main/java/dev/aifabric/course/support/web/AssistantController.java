@@ -70,9 +70,9 @@ public class AssistantController {
 
     @PostMapping("/query")
     public ResponseEntity<SupportAnswer> query(@Valid @RequestBody AssistantQueryRequest request) {
-        SupportAnswer answer = assistantService.answer(request.message());
+        SupportAnswer answer = assistantService.answer(request.message(), principalProvider.currentPrincipal());
         HttpStatus status = switch (answer.status()) {
-            case RETRIEVAL_FAILED, GENERATION_FAILED -> HttpStatus.SERVICE_UNAVAILABLE;
+            case RETRIEVAL_FAILED, GENERATION_FAILED, PRIVACY_FAILED -> HttpStatus.SERVICE_UNAVAILABLE;
             case ANSWERED, NO_EVIDENCE -> HttpStatus.OK;
         };
         return ResponseEntity.status(status).body(answer);

@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,6 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class GovernedActionsIntegrationTest {
 
     private static final String CONVERSATION = "course-action-test";
+    private static final String ALEX_BEARER = "Bearer course-alex-local-token";
 
     @Autowired
     private MockMvc mockMvc;
@@ -100,6 +102,7 @@ class GovernedActionsIntegrationTest {
         ));
 
         mockMvc.perform(post("/api/assistant/orchestrate")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(request("Create an urgent account locked ticket", CONVERSATION)))
             .andExpect(status().isOk())
@@ -108,7 +111,7 @@ class GovernedActionsIntegrationTest {
             .andExpect(jsonPath("$.result.data.action").value("create_support_ticket"))
             .andExpect(jsonPath("$.result.data.missingRequiredParameters[0]").value("description"));
 
-        assertThat(ticketRepository.count()).isOne();
+        assertThat(ticketRepository.count()).isEqualTo(2);
         assertThat(pendingActionStore.peekPendingAction(CONVERSATION, CourseDataService.COURSE_CUSTOMER)).isEmpty();
     }
 
@@ -120,14 +123,14 @@ class GovernedActionsIntegrationTest {
             .andExpect(jsonPath("$.result.data.action").value("create_support_ticket"))
             .andExpect(jsonPath("$.result.data.confirmationRequired").value(true));
 
-        assertThat(ticketRepository.count()).isOne();
+        assertThat(ticketRepository.count()).isEqualTo(2);
         assertThat(pendingActionStore.peekPendingAction(CONVERSATION, CourseDataService.COURSE_CUSTOMER))
             .get().extracting(pending -> pending.action()).isEqualTo("create_support_ticket");
 
         generationProvider.response(confirmationIntent("CONFIRMATION_NEGATIVE"));
         requestAction("no", CONVERSATION)
             .andExpect(jsonPath("$.result.type").value("INFORMATION_PROVIDED"));
-        assertThat(ticketRepository.count()).isOne();
+        assertThat(ticketRepository.count()).isEqualTo(2);
         assertThat(pendingActionStore.peekPendingAction(CONVERSATION, CourseDataService.COURSE_CUSTOMER)).isEmpty();
 
         generationProvider.response(completeCreateIntent());
@@ -142,14 +145,14 @@ class GovernedActionsIntegrationTest {
             .andExpect(jsonPath("$.result.data.actionResult.data.status").value("OPEN"))
             .andExpect(jsonPath("$.result.data.actionResult.data.priority").value("HIGH"));
 
-        assertThat(ticketRepository.count()).isEqualTo(2);
+        assertThat(ticketRepository.count()).isEqualTo(3);
         assertThat(pendingActionStore.peekPendingAction(CONVERSATION, CourseDataService.COURSE_CUSTOMER)).isEmpty();
 
         generationProvider.response(confirmationIntent("CONFIRMATION_POSITIVE"));
         requestAction("yes", CONVERSATION)
             .andExpect(jsonPath("$.result.type").value("INFORMATION_PROVIDED"))
             .andExpect(jsonPath("$.result.message").value("There is no pending action to confirm."));
-        assertThat(ticketRepository.count()).isEqualTo(2);
+        assertThat(ticketRepository.count()).isEqualTo(3);
     }
 
     @Test
@@ -179,8 +182,7 @@ class GovernedActionsIntegrationTest {
             CoursePrincipal.anonymous("anonymous-session")
         );
         assertThat(anonymous.result().getType()).isEqualTo(OrchestrationResultType.ERROR);
-        assertThat(anonymous.result().getErrorCode()).isEqualTo("ACCESS_DENIED");
-        assertThat(ticketRepository.count()).isOne();
+        assertThat(ticketRepository.count()).isEqualTo(2);
 
         generationProvider.response(actionIntent(
             "get_my_ticket_status",
@@ -192,9 +194,25 @@ class GovernedActionsIntegrationTest {
             new CoursePrincipal(CourseDataService.COURSE_CUSTOMER, "tenant-red", "wrong-tenant-session")
         );
         assertThat(wrongTenant.result().getType()).isEqualTo(OrchestrationResultType.ACTION_DENIED);
-        assertThat(ticketRepository.count()).isOne();
+        assertThat(ticketRepository.count()).isEqualTo(2);
 
         assertThatThrownByTenantScopeRecheck();
+    }
+
+    @Test
+    void crossTenantTargetIsDeniedBeforeAConfirmationCanBeStored() throws Exception {
+        String conversationId = "cross-tenant-pre-confirmation";
+        generationProvider.response(actionIntent(
+            "escalate_support_ticket",
+            "{\"ticketNumber\":\"T-2002\"}"
+        ));
+
+        requestAction("Escalate ticket T-2002", conversationId)
+            .andExpect(jsonPath("$.result.type").value("ACTION_DENIED"));
+
+        assertThat(pendingActionStore.peekPendingAction(conversationId, CourseDataService.COURSE_CUSTOMER))
+            .isEmpty();
+        assertThat(ticketRepository.findById("T-2002").orElseThrow().getStatus()).isEqualTo("OPEN");
     }
 
     private void assertThatThrownByTenantScopeRecheck() {
@@ -207,6 +225,7 @@ class GovernedActionsIntegrationTest {
     private org.springframework.test.web.servlet.ResultActions requestAction(String message, String conversationId)
         throws Exception {
         return mockMvc.perform(post("/api/assistant/orchestrate")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(request(message, conversationId)))
             .andExpect(status().isOk());

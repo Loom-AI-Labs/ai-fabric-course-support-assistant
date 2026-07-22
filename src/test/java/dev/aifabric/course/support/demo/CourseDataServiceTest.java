@@ -34,14 +34,15 @@ class CourseDataServiceTest {
     void seedCreatesTheDeterministicCourseDataset() {
         CourseDataService.DatasetSnapshot snapshot = dataService.seed();
 
-        assertThat(snapshot.articles()).isEqualTo(6);
+        assertThat(snapshot.articles()).isEqualTo(9);
         assertThat(snapshot.policies()).isEqualTo(2);
-        assertThat(snapshot.accounts()).isEqualTo(1);
-        assertThat(snapshot.tickets()).isEqualTo(1);
+        assertThat(snapshot.accounts()).isEqualTo(2);
+        assertThat(snapshot.tickets()).isEqualTo(2);
         assertThat(articleRepository.findById("article-account-lockout")).isPresent();
         assertThat(policyRepository.findById("policy-privacy")).isPresent();
         assertThat(accountRepository.findById(CourseDataService.COURSE_CUSTOMER)).isPresent();
         assertThat(ticketRepository.findById("T-1001")).isPresent();
+        assertThat(ticketRepository.findById("T-2002")).isPresent();
     }
 
     @Test

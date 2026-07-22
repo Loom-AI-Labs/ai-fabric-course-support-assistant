@@ -1,8 +1,11 @@
+@alexToken = course-alex-local-token
+
 ### Seed the course customer and T-1001; this also clears previous course conversations
 POST http://localhost:8080/api/demo/seed
 
 ### Turn 1: backend records the sanitized request and action projection
 POST http://localhost:8080/api/assistant/orchestrate
+Authorization: Bearer {{alexToken}}
 Content-Type: application/json
 
 {
@@ -12,6 +15,7 @@ Content-Type: application/json
 
 ### Turn 2: send only the new message; backend history supplies the ticket context
 POST http://localhost:8080/api/assistant/orchestrate
+Authorization: Bearer {{alexToken}}
 Content-Type: application/json
 
 {
@@ -21,9 +25,11 @@ Content-Type: application/json
 
 ### Reopen the panel by loading authorized backend turns; this does not mutate the session
 GET http://localhost:8080/api/assistant/conversations/course-memory
+Authorization: Bearer {{alexToken}}
 
 ### Turn 3: confirmation resolves the owner-scoped pending action exactly once
 POST http://localhost:8080/api/assistant/orchestrate
+Authorization: Bearer {{alexToken}}
 Content-Type: application/json
 
 {
@@ -33,6 +39,7 @@ Content-Type: application/json
 
 ### Duplicate approval must not execute the escalation again
 POST http://localhost:8080/api/assistant/orchestrate
+Authorization: Bearer {{alexToken}}
 Content-Type: application/json
 
 {
@@ -42,6 +49,7 @@ Content-Type: application/json
 
 ### Intentional isolation proof: this new conversation has no T-1001 context
 POST http://localhost:8080/api/assistant/orchestrate
+Authorization: Bearer {{alexToken}}
 Content-Type: application/json
 
 {
@@ -51,3 +59,4 @@ Content-Type: application/json
 
 ### Deliberate backend reset; closing a browser panel should never call this
 DELETE http://localhost:8080/api/assistant/conversations/course-memory
+Authorization: Bearer {{alexToken}}

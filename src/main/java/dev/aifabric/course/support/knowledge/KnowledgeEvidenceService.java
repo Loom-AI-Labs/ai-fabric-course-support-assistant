@@ -7,8 +7,11 @@ import ai.fabric.dto.AISearchRequest;
 import ai.fabric.dto.AISearchResponse;
 import ai.fabric.rag.VectorDatabaseService;
 import ai.fabric.service.AICapabilityService;
+import ai.fabric.util.VectorMetadataFilterSupport;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.aifabric.course.support.identity.CourseAuthorizationService;
+import dev.aifabric.course.support.identity.CoursePrincipal;
 import jakarta.validation.constraints.NotBlank;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,19 +30,22 @@ public class KnowledgeEvidenceService {
     private final AICoreService aiCoreService;
     private final VectorDatabaseService vectorDatabaseService;
     private final ObjectMapper objectMapper;
+    private final CourseAuthorizationService authorizationService;
 
     public KnowledgeEvidenceService(KnowledgeArticleRepository articleRepository,
                                     AICapabilityService capabilityService,
                                     AIEntityConfigurationLoader configurationLoader,
                                     AICoreService aiCoreService,
                                     VectorDatabaseService vectorDatabaseService,
-                                    ObjectMapper objectMapper) {
+                                    ObjectMapper objectMapper,
+                                    CourseAuthorizationService authorizationService) {
         this.articleRepository = articleRepository;
         this.capabilityService = capabilityService;
         this.configurationLoader = configurationLoader;
         this.aiCoreService = aiCoreService;
         this.vectorDatabaseService = vectorDatabaseService;
         this.objectMapper = objectMapper;
+        this.authorizationService = authorizationService;
     }
 
     public IndexResponse indexAll() {
@@ -48,23 +54,34 @@ public class KnowledgeEvidenceService {
         return new IndexResponse(articles.size(), indexedCount());
     }
 
-    public SearchResponse search(String query) {
+    public List<PublicArticle> articles(CoursePrincipal principal) {
+        CoursePrincipal authorized = authorizationService.requireScope(principal, "support:read");
+        return articleRepository.findByTenantIdAndVisibleToUserTrueOrderByIdAsc(authorized.tenantId()).stream()
+            .map(PublicArticle::from)
+            .toList();
+    }
+
+    public SearchResponse search(String query, CoursePrincipal principal) {
+        CoursePrincipal authorized = authorizationService.requireScope(principal, "support:read");
+        Map<String, Object> requiredFilters = requiredEvidenceFilters(authorized);
         AISearchResponse response = aiCoreService.performSearch(AISearchRequest.builder()
             .query(query)
             .entityType(KnowledgeArticle.ENTITY_TYPE)
             .limit(5)
             .threshold(0.25)
+            .metadata(requiredFilters)
             .build());
 
         List<Evidence> evidence = safeResults(response).stream()
-            .map(this::toEvidence)
+            .map(result -> toEvidence(result, requiredFilters))
             .toList();
         return new SearchResponse(query, evidence.size(), evidence);
     }
 
     @Transactional
-    public PublicArticle update(String id, UpdateArticleRequest request) {
-        KnowledgeArticle article = articleRepository.findById(id)
+    public PublicArticle update(String id, UpdateArticleRequest request, CoursePrincipal principal) {
+        CoursePrincipal authorized = authorizationService.requireScope(principal, "support:write");
+        KnowledgeArticle article = articleRepository.findByIdAndTenantId(id, authorized.tenantId())
             .orElseThrow(() -> new ArticleNotFoundException(id));
         article.setTitle(request.title());
         article.setBody(request.body());
@@ -74,8 +91,9 @@ public class KnowledgeEvidenceService {
     }
 
     @Transactional
-    public void delete(String id) {
-        KnowledgeArticle article = articleRepository.findById(id)
+    public void delete(String id, CoursePrincipal principal) {
+        CoursePrincipal authorized = authorizationService.requireScope(principal, "support:write");
+        KnowledgeArticle article = articleRepository.findByIdAndTenantId(id, authorized.tenantId())
             .orElseThrow(() -> new ArticleNotFoundException(id));
         removeVectorIfPresent(id);
         articleRepository.delete(article);
@@ -96,6 +114,7 @@ public class KnowledgeEvidenceService {
     }
 
     private void replaceVector(KnowledgeArticle article) {
+        validateIndexBoundary(article);
         removeVectorIfPresent(article.getId());
         AIEntityConfig config = configurationLoader.getEntityConfig(KnowledgeArticle.ENTITY_TYPE);
         if (config == null) {
@@ -118,10 +137,52 @@ public class KnowledgeEvidenceService {
         return response != null && response.getResults() != null ? response.getResults() : List.of();
     }
 
-    private Evidence toEvidence(Map<String, Object> result) {
+    void validateIndexBoundary(KnowledgeArticle article) {
+        if (article == null
+            || !org.springframework.util.StringUtils.hasText(article.getTenantId())
+            || !org.springframework.util.StringUtils.hasText(article.getVisibility())) {
+            throw new EvidenceBoundaryException("Knowledge evidence is missing required tenant metadata");
+        }
+    }
+
+    private Evidence toEvidence(Map<String, Object> result, Map<String, Object> requiredFilters) {
         String id = stringValue(result.getOrDefault("id", result.get("entityId")));
         double score = numberValue(result.getOrDefault("score", result.get("similarity")));
-        return new Evidence(id, score, stringValue(result.get("content")), metadata(result.get("metadata")));
+        Map<String, Object> resultMetadata = metadata(result.get("metadata"));
+        if (!VectorMetadataFilterSupport.matchesPortableEquals(resultMetadata, requiredFilters)) {
+            throw new EvidenceBoundaryException("Vector results crossed the required tenant boundary");
+        }
+        return new Evidence(id, score, stringValue(result.get("content")), publicEvidenceMetadata(resultMetadata));
+    }
+
+    private Map<String, Object> publicEvidenceMetadata(Map<String, Object> metadata) {
+        Map<String, Object> safe = new LinkedHashMap<>();
+        copyIfPresent(metadata, safe, "title");
+        copyIfPresent(metadata, safe, "category");
+        copyIfPresent(metadata, safe, "status");
+        copyIfPresent(metadata, safe, "visibility");
+        return safe.isEmpty() ? Map.of() : Map.copyOf(safe);
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        Object value = source.get(key);
+        if (value != null) {
+            target.put(key, value);
+        }
+    }
+
+    private Map<String, Object> requiredEvidenceFilters(CoursePrincipal principal) {
+        Map<String, Object> filters = Map.of(
+            "tenantId", principal.tenantId(),
+            "visibleToUser", true,
+            "status", "PUBLISHED"
+        );
+        VectorMetadataFilterSupport.ValidationResult validation =
+            VectorMetadataFilterSupport.validatePortableEquals(filters);
+        if (validation.hasRejectedFilters() || validation.terms().size() != filters.size()) {
+            throw new EvidenceBoundaryException("Required tenant filter is not portable");
+        }
+        return filters;
     }
 
     private Map<String, Object> metadata(Object value) {
@@ -157,10 +218,10 @@ public class KnowledgeEvidenceService {
     public record UpdateArticleRequest(@NotBlank String title, @NotBlank String body) { }
 
     public record PublicArticle(String id, String title, String body, String category,
-                                String tenantId, String status) {
+                                String status, String visibility) {
         public static PublicArticle from(KnowledgeArticle article) {
             return new PublicArticle(article.getId(), article.getTitle(), article.getBody(), article.getCategory(),
-                article.getTenantId(), article.getStatus());
+                article.getStatus(), article.getVisibility());
         }
     }
 }

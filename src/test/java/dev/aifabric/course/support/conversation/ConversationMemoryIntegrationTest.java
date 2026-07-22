@@ -40,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -51,6 +52,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class ConversationMemoryIntegrationTest {
 
     private static final String OWNER = CourseDataService.COURSE_CUSTOMER;
+    private static final String ALEX_BEARER = "Bearer course-alex-local-token";
     private static final CoursePrincipal PRINCIPAL = new CoursePrincipal(
         OWNER, CourseDataService.COURSE_TENANT, "course-session-alex");
 
@@ -145,7 +147,8 @@ class ConversationMemoryIntegrationTest {
             .get().extracting(PendingAction::action).isEqualTo("escalate_support_ticket");
         assertThat(ticketRepository.findById("T-1001").orElseThrow().getStatus()).isEqualTo("OPEN");
 
-        mockMvc.perform(get("/api/assistant/conversations/{conversationId}", conversationId))
+        mockMvc.perform(get("/api/assistant/conversations/{conversationId}", conversationId)
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.conversationId").value(conversationId))
             .andExpect(jsonPath("$.status").value("ACTIVE"))
@@ -190,8 +193,8 @@ class ConversationMemoryIntegrationTest {
         chatSessionService.getConversationMessages(conversationId, OWNER);
 
         accountRepository.save(new CustomerAccount(
-            "customer-riley", CourseDataService.COURSE_TENANT, "riley@example.test", "PRO", "CUSTOMER"));
-        assertThatThrownBy(() -> chatSessionService.getSession(conversationId, "customer-riley"))
+            "customer-sam", CourseDataService.COURSE_TENANT, "sam@example.test", "PRO", "CUSTOMER"));
+        assertThatThrownBy(() -> chatSessionService.getSession(conversationId, "customer-sam"))
             .isInstanceOf(ChatSessionAccessDeniedException.class)
             .hasMessageContaining("different user");
         assertThatThrownBy(() -> chatSessionService.getConversationMessages("invalid conversation", OWNER))
@@ -293,10 +296,12 @@ class ConversationMemoryIntegrationTest {
             "get_my_ticket_status", "{\"ticketNumber\":\"T-1001\"}"));
         orchestrationService.orchestrate("Read T-1001", conversationId, PRINCIPAL);
 
-        mockMvc.perform(get("/api/assistant/conversations/{conversationId}", conversationId))
+        mockMvc.perform(get("/api/assistant/conversations/{conversationId}", conversationId)
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.turns.length()").value(1));
-        mockMvc.perform(get("/api/assistant/conversations/{conversationId}", conversationId))
+        mockMvc.perform(get("/api/assistant/conversations/{conversationId}", conversationId)
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.turns.length()").value(1));
 
@@ -306,6 +311,7 @@ class ConversationMemoryIntegrationTest {
     @Test
     void invalidConversationIdIsRejectedAtTheHttpBoundary() throws Exception {
         mockMvc.perform(post("/api/assistant/orchestrate")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"message":"Read my ticket","conversationId":"not allowed"}

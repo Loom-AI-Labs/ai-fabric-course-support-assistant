@@ -9,18 +9,19 @@ privacy, and release verification. Each immutable `course-0.3.3-*` tag is a less
 
 ## Current Checkpoint
 
-This checkpoint adds backend-owned conversation memory while preserving semantic search,
-evidence-grounded RAG, and governed actions. AI Fabric now records sanitized turns in JPA-backed
-chat sessions, supplies bounded role-aware history to the LLM, persists pending confirmations, and
-reuses short-lived targets. The browser sends only the new message, stable conversation ID, and
-optional current attachments.
+This checkpoint adds tenant security and fail-closed privacy while preserving semantic search,
+evidence-grounded RAG, governed actions, and backend-owned memory. The server resolves identity
+from bearer credentials, adds exact tenant and visibility filters to retrieval, verifies every hit
+again before generation, and denies cross-tenant actions before confirmation. Explicit message
+intake, orchestration, chat history, direct RAG, and generated output all pass through AI Fabric PII
+redaction without retaining or returning raw originals.
 
 ## Requirements
 
 - Java 21
 - Maven 3.9+, or the included Maven wrapper
 
-## Run Backend Conversation Memory
+## Run Tenant Security And Privacy
 
 ```bash
 ./mvnw clean verify
@@ -31,32 +32,51 @@ OPENAI_API_KEY=<set-locally> ./mvnw spring-boot:run -Dspring-boot.run.profiles=o
 Then inspect the baseline:
 
 ```bash
+export COURSE_TOKEN=course-alex-local-token
 curl -s -X POST http://localhost:8080/api/demo/reset
 curl -s -X POST http://localhost:8080/api/demo/seed
 curl -s -X POST http://localhost:8080/api/assistant/query \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"message":"What should I do if failed sign-ins locked me out?"}'
 curl -s -X POST http://localhost:8080/api/demo/index
 curl -s http://localhost:8080/api/demo/readiness
 curl -s -X POST http://localhost:8080/api/assistant/query \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"message":"What should I do if failed sign-ins locked me out?"}'
-curl -s http://localhost:8080/api/assistant/actions
+curl -s http://localhost:8080/api/assistant/actions \
+  -H "Authorization: Bearer $COURSE_TOKEN"
 curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"message":"Why is ticket T-1001 unresolved?","conversationId":"course-memory"}'
 curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"message":"Escalate it.","conversationId":"course-memory"}'
-curl -s http://localhost:8080/api/assistant/conversations/course-memory
+curl -s http://localhost:8080/api/assistant/conversations/course-memory \
+  -H "Authorization: Bearer $COURSE_TOKEN"
 curl -s -X POST http://localhost:8080/api/assistant/orchestrate \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"message":"Yes.","conversationId":"course-memory"}'
+curl -s -X POST http://localhost:8080/api/support/messages \
+  -H "Authorization: Bearer $COURSE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"content":"Contact alex.private@example.com about SSN 123-45-6789"}'
 ```
 
 The RAG flow remains available at `/api/assistant/query`. The governed and conversational flow uses
-`/api/assistant/orchestrate`; copyable three-turn follow-up, reopen, duplicate-confirmation, and
-new-conversation isolation requests are in `requests/04-backend-memory.http`.
+`/api/assistant/orchestrate`; copyable identity, tenant-isolation, pre-confirmation denial, and PII
+scenarios are in `requests/05-tenant-security-privacy.http`.
+
+The default local credentials exist only to make the course reproducible. Alex belongs to
+`tenant-blue`; Riley belongs to `tenant-red`. Set `COURSE_ALEX_TOKEN` and `COURSE_RILEY_TOKEN` to
+replace them outside a learner workstation. A request body or ad hoc tenant header cannot select
+identity. In a real application, replace `CourseBearerAuthenticationFilter` with your verified
+OAuth2/JWT or gateway principal adapter while preserving `CoursePrincipalProvider` as the
+application boundary.
 
 The first RAG request returns `NO_EVIDENCE` and does not call the LLM because ordinary
 database rows have not been indexed. The second returns `ANSWERED` with
@@ -71,7 +91,21 @@ with HTTP 503 and no canned answer.
 `./mvnw clean verify` needs no API key. Tests use explicitly labelled, test-only embedding and
 generation providers without pretending to be live AI. They inject valid structured intents, then
 exercise the real AI Fabric pipeline, JPA chat storage, role-aware history, session-backed pending
-store, registry, annotations, argument binder, authorization hooks, and domain transactions.
+store, registry, annotations, argument binder, authorization hooks, domain transactions, exact
+metadata filtering, post-hit verification, and PII processing.
+
+`@ActionAllowed` validates an explicit ticket target before AI Fabric creates confirmation state.
+The domain transaction validates ownership again before mutation. Retrieval follows the same
+defense-in-depth shape: exact `tenantId`, `visibleToUser`, and `status` filters narrow the provider
+query, then application code checks every returned hit before any context reaches the LLM. Public
+projections omit tenant IDs, raw provider metadata, internal notes, customer IDs, and action
+context.
+
+`ai-fabric-pii` runs in `REDACT` plus `INPUT_OUTPUT` mode with raw-original exposure and encrypted
+original storage disabled. `SafePIIProcessor` protects app-owned intake paths outside orchestration;
+AI Fabric protects orchestration input, output, and conversation recording. Failure to prove either
+access or redaction is returned as an explicit denial or service failure, never a permissive
+fallback.
 
 The app configures an eight-turn, 4,000-character history window, three-turn target reuse, and a
 four-action pending stack. `CourseConversationAuthorization` checks known owners and bounded IDs;
@@ -115,6 +149,7 @@ confirmation state, and provider integration as those capabilities are introduce
 
 - `requests/` contains copyable HTTP scenarios.
 - `docs/conversation-memory-contract.md` traces memory, ownership, bounds, and transient requests.
+- `docs/security-privacy-contract.md` traces verified identity, tenant evidence, actions, and PII.
 - `src/main/resources/prompts/` contains the narrow, tested course-support prompt overlay.
 - `scripts/reset-course.sh` restores the deterministic fixture state.
 - `.github/workflows/verify.yml` proves the repository builds independently from Maven Central.

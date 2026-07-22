@@ -1,0 +1,51 @@
+@baseUrl = http://localhost:8080
+@alexToken = course-alex-local-token
+@rileyToken = course-riley-local-token
+
+### Reset, seed two tenants, and index tenant-tagged evidence
+POST {{baseUrl}}/api/demo/reset
+
+###
+POST {{baseUrl}}/api/demo/seed
+
+###
+POST {{baseUrl}}/api/demo/index
+
+### Missing verified identity is rejected
+GET {{baseUrl}}/api/knowledge/articles
+
+### Alex sees Tenant Blue evidence; spoofed headers are ignored
+GET {{baseUrl}}/api/knowledge/search?q=How%20do%20I%20restore%20VPN%20access%20and%20refresh%20my%20certificate
+Authorization: Bearer {{alexToken}}
+X-User-Id: customer-riley
+X-Tenant-Id: tenant-red
+
+### Riley sees Tenant Red evidence and never the restricted payroll record
+GET {{baseUrl}}/api/knowledge/search?q=How%20do%20I%20restore%20VPN%20access%20and%20enroll%20my%20replacement%20device
+Authorization: Bearer {{rileyToken}}
+
+### This explicit cross-tenant target is denied before confirmation state is created
+POST {{baseUrl}}/api/assistant/orchestrate
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "message": "Escalate ticket T-2002",
+  "conversationId": "course-cross-tenant"
+}
+
+### App-owned intake redacts before both database storage and vector indexing
+POST {{baseUrl}}/api/support/messages
+Authorization: Bearer {{alexToken}}
+Content-Type: application/json
+
+{
+  "content": "Contact alex.private@example.com about SSN 123-45-6789"
+}
+
+### Only the redacted projection can be loaded
+GET {{baseUrl}}/api/support/messages
+Authorization: Bearer {{alexToken}}
+
+### Readiness exposes enabled boundaries and vector counts, not credentials
+GET {{baseUrl}}/api/demo/readiness

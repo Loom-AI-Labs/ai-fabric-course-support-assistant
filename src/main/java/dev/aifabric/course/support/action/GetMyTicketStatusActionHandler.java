@@ -32,8 +32,10 @@ public class GetMyTicketStatusActionHandler {
 
     @ActionAllowed
     public boolean allowed(ActionContext context) {
-        return context != null && ticketService.isKnownCustomerContext(
-            context.userId(), context.authContext().getTenantId());
+        String ticketNumber = ActionAuthorizationSupport.actionParameter(context, "ticketNumber");
+        return ActionAuthorizationSupport.hasScopeAndRole(context, "support:read", "CUSTOMER")
+            && (ticketNumber == null || ticketService.canAccessTicket(
+                ticketNumber, context.userId(), context.authContext().getTenantId()));
     }
 
     @ActionExecute

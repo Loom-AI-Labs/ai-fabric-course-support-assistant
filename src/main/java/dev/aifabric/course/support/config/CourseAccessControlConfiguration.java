@@ -4,6 +4,7 @@ import ai.fabric.access.policy.EntityAccessPolicy;
 import ai.fabric.chat.spi.ChatSessionAccessControlPolicy;
 import ai.fabric.dto.AIAccessSubjectContext;
 import dev.aifabric.course.support.conversation.CourseConversationAuthorization;
+import java.util.List;
 import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,8 @@ public class CourseAccessControlConfiguration {
     @Bean
     EntityAccessPolicy courseEntityAccessPolicy() {
         return (authContext, entity) -> hasRequestSubject(authContext)
+            && StringUtils.hasText(authContext.getTenantId())
+            && hasScope(authContext.getGrantedScopes(), "support:read")
             && ORCHESTRATION_RESOURCE.equals(value(entity, "resourceId"))
             && READ_OPERATION.equalsIgnoreCase(value(entity, "operationType"));
     }
@@ -53,6 +56,10 @@ public class CourseAccessControlConfiguration {
         return authContext != null
             && (StringUtils.hasText(authContext.getSubjectId())
                 || StringUtils.hasText(authContext.getSessionId()));
+    }
+
+    private boolean hasScope(List<String> scopes, String requiredScope) {
+        return scopes != null && scopes.stream().anyMatch(requiredScope::equals);
     }
 
     private String value(Map<String, Object> entity, String key) {

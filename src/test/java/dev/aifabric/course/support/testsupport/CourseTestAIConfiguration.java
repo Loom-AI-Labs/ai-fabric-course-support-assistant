@@ -200,8 +200,9 @@ public class CourseTestAIConfiguration {
             addTopic(vector, 2, normalized, "subscription", "cancel", "plan", "paid period");
             addTopic(vector, 3, normalized, "api key", "rotate", "revoke", "developer");
             addTopic(vector, 4, normalized, "two-factor", "2fa", "recovery code", "device", "identity");
+            addTopic(vector, 5, normalized, "vpn", "certificate", "network", "enroll", "credentials");
 
-            int bucket = Math.floorMod(normalized.hashCode(), 3) + 5;
+            int bucket = Math.floorMod(normalized.hashCode(), 2) + 6;
             vector[bucket] += 0.05;
             normalize(vector);
 

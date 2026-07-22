@@ -63,8 +63,10 @@ public class SupportOrchestrationService {
             metadata.put(OrchestrationContextMetadataKeys.SUBJECT_ID, principal.userId());
             metadata.put(OrchestrationContextMetadataKeys.SUBJECT_TYPE, "END_USER");
             metadata.put(OrchestrationContextMetadataKeys.TENANT_ID, principal.tenantId());
+            metadata.put(OrchestrationContextMetadataKeys.GRANTED_SCOPES, principal.scopes());
             metadata.put(OrchestrationContextMetadataKeys.AUTH_MODE, "COURSE_DEMO_PRINCIPAL");
             metadata.put(OrchestrationContextMetadataKeys.CALLER_TYPE, "COURSE_API");
+            metadata.put("courseRoles", principal.roles());
             if (neverPersist) {
                 metadata.put(OrchestrationContextMetadataKeys.QUERY_PERSISTENCE_MODE, "NEVER_PERSIST");
             }

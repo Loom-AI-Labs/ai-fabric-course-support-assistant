@@ -35,6 +35,15 @@ public class SupportTicketService {
     }
 
     @Transactional(readOnly = true)
+    public boolean canAccessTicket(String ticketNumber, String customerId, String tenantId) {
+        if (!isKnownCustomerContext(customerId, tenantId) || !StringUtils.hasText(ticketNumber)) {
+            return false;
+        }
+        return ticketRepository.findByIdAndTenantIdAndCustomerId(
+            ticketNumber.trim().toUpperCase(Locale.ROOT), tenantId.trim(), customerId.trim()).isPresent();
+    }
+
+    @Transactional(readOnly = true)
     public TicketView getForCurrentCustomer(String ticketNumber, String customerId, String tenantId) {
         requireCurrentCustomer(customerId, tenantId);
         if (!StringUtils.hasText(ticketNumber)) {

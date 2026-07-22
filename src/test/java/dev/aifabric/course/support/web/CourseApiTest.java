@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.ActiveProfiles;
@@ -25,6 +26,8 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 @Import(CourseTestAIConfiguration.class)
 class CourseApiTest {
+
+    private static final String ALEX_BEARER = "Bearer course-alex-local-token";
 
     @Autowired
     private MockMvc mockMvc;
@@ -45,33 +48,40 @@ class CourseApiTest {
     void sourceDataAndVectorEvidenceHaveSeparateLifecycle() throws Exception {
         mockMvc.perform(post("/api/demo/seed"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.articles").value(6))
+            .andExpect(jsonPath("$.articles").value(9))
             .andExpect(jsonPath("$.policies").value(2));
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-04-memory"))
-            .andExpect(jsonPath("$.sourceRecords.articles").value(6))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-05-security"))
+            .andExpect(jsonPath("$.sourceRecords.articles").value(9))
             .andExpect(jsonPath("$.indexedVectors").value(0))
             .andExpect(jsonPath("$.capabilities.semanticSearch").value(true))
             .andExpect(jsonPath("$.capabilities.rag").value(true))
             .andExpect(jsonPath("$.capabilities.governedActions").value(true))
-            .andExpect(jsonPath("$.capabilities.conversationMemory").value(true));
+            .andExpect(jsonPath("$.capabilities.conversationMemory").value(true))
+            .andExpect(jsonPath("$.capabilities.tenantSecurity").value(true))
+            .andExpect(jsonPath("$.capabilities.piiProtection").value(true));
 
-        mockMvc.perform(get("/api/knowledge/search").param("q", "I cannot sign in after too many attempts"))
+        mockMvc.perform(get("/api/knowledge/search")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
+                .param("q", "I cannot sign in after too many attempts"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.resultCount").value(0));
 
         mockMvc.perform(post("/api/demo/index"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.indexedArticles").value(6))
-            .andExpect(jsonPath("$.indexedVectors").value(6));
+            .andExpect(jsonPath("$.indexedArticles").value(9))
+            .andExpect(jsonPath("$.indexedVectors").value(9));
 
-        mockMvc.perform(get("/api/knowledge/search").param("q", "I cannot sign in after too many attempts"))
+        mockMvc.perform(get("/api/knowledge/search")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
+                .param("q", "I cannot sign in after too many attempts"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.evidence[0].evidenceId").value("policy-account-lockout-01"))
             .andExpect(jsonPath("$.evidence[0].metadata.category").value("authentication-policy"))
-            .andExpect(jsonPath("$.evidence[0].metadata.tenantId").value("tenant-blue"))
+            .andExpect(jsonPath("$.evidence[0].metadata.tenantId").doesNotExist())
+            .andExpect(jsonPath("$.evidence[0].metadata.raw").doesNotExist())
             .andExpect(jsonPath("$.evidence[0].content").value(org.hamcrest.Matchers.not(
                 org.hamcrest.Matchers.containsString("fraud review"))));
     }
@@ -82,6 +92,7 @@ class CourseApiTest {
         mockMvc.perform(post("/api/demo/index")).andExpect(status().isOk());
 
         mockMvc.perform(put("/api/knowledge/articles/article-billing-method")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -92,7 +103,9 @@ class CourseApiTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.title").value("Download a billing invoice"));
 
-        mockMvc.perform(get("/api/knowledge/search").param("q", "Where can I download my invoice receipt?"))
+        mockMvc.perform(get("/api/knowledge/search")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
+                .param("q", "Where can I download my invoice receipt?"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.evidence[0].evidenceId").value("article-billing-method"))
             .andExpect(jsonPath("$.evidence[0].content").value(
@@ -100,13 +113,14 @@ class CourseApiTest {
             .andExpect(jsonPath("$.evidence[0].content").value(
                 org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("replacement method"))));
 
-        mockMvc.perform(delete("/api/knowledge/articles/article-billing-method"))
+        mockMvc.perform(delete("/api/knowledge/articles/article-billing-method")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER))
             .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.sourceRecords.articles").value(5))
-            .andExpect(jsonPath("$.indexedVectors").value(5));
+            .andExpect(jsonPath("$.sourceRecords.articles").value(8))
+            .andExpect(jsonPath("$.indexedVectors").value(8));
     }
 
     @Test
@@ -116,6 +130,7 @@ class CourseApiTest {
         mockMvc.perform(post("/api/demo/seed")).andExpect(status().isOk());
 
         mockMvc.perform(post("/api/assistant/query")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"message":"What should I do if failed sign-ins locked me out?"}
@@ -136,6 +151,7 @@ class CourseApiTest {
         mockMvc.perform(post("/api/demo/index")).andExpect(status().isOk());
 
         mockMvc.perform(post("/api/assistant/query")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"message":"What should I do if failed sign-ins locked me out?"}
@@ -164,6 +180,7 @@ class CourseApiTest {
         generationProvider.failNext();
 
         mockMvc.perform(post("/api/assistant/query")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"message":"What should I do if failed sign-ins locked me out?"}
@@ -182,10 +199,11 @@ class CourseApiTest {
 
         mockMvc.perform(post("/api/demo/vectors/clear"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.sourceRecords.articles").value(6))
+            .andExpect(jsonPath("$.sourceRecords.articles").value(9))
             .andExpect(jsonPath("$.indexedVectors").value(0));
 
         mockMvc.perform(post("/api/assistant/query")
+                .header(HttpHeaders.AUTHORIZATION, ALEX_BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"message":"What should I do if failed sign-ins locked me out?"}

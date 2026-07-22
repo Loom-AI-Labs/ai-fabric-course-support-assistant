@@ -3,6 +3,7 @@ package dev.aifabric.course.support.web;
 import dev.aifabric.course.support.demo.CourseDataService;
 import dev.aifabric.course.support.demo.CourseReadinessService;
 import dev.aifabric.course.support.knowledge.KnowledgeEvidenceService;
+import dev.aifabric.course.support.message.SupportMessageService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,17 +16,21 @@ public class DemoController {
     private final CourseDataService dataService;
     private final CourseReadinessService readinessService;
     private final KnowledgeEvidenceService evidenceService;
+    private final SupportMessageService messageService;
 
     public DemoController(CourseDataService dataService, CourseReadinessService readinessService,
-                          KnowledgeEvidenceService evidenceService) {
+                          KnowledgeEvidenceService evidenceService,
+                          SupportMessageService messageService) {
         this.dataService = dataService;
         this.readinessService = readinessService;
         this.evidenceService = evidenceService;
+        this.messageService = messageService;
     }
 
     @PostMapping("/reset")
     public CourseDataService.DatasetSnapshot reset() {
         evidenceService.clear();
+        messageService.clearVectors();
         return dataService.reset();
     }
 
@@ -42,6 +47,7 @@ public class DemoController {
     @PostMapping("/vectors/clear")
     public CourseReadinessService.ReadinessResponse clearVectors() {
         evidenceService.clear();
+        messageService.clearVectors();
         return readinessService.readiness();
     }
 

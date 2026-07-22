@@ -1,19 +1,19 @@
 package dev.aifabric.course.support.identity;
 
-import dev.aifabric.course.support.demo.CourseDataService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-/**
- * Supplies a trusted demo identity until the security lesson replaces it with authenticated request data.
- */
 @Component
 public class CoursePrincipalProvider {
 
     public CoursePrincipal currentPrincipal() {
-        return new CoursePrincipal(
-            CourseDataService.COURSE_CUSTOMER,
-            CourseDataService.COURSE_TENANT,
-            "course-session-alex"
-        );
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null
+            && authentication.isAuthenticated()
+            && authentication.getPrincipal() instanceof CourseAuthenticatedPrincipal principal) {
+            return principal.toCoursePrincipal();
+        }
+        return CoursePrincipal.anonymous("course-anonymous");
     }
 }

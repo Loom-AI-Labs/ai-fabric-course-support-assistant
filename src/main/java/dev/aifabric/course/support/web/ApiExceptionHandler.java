@@ -2,10 +2,11 @@ package dev.aifabric.course.support.web;
 
 import ai.fabric.chat.exception.ChatSessionAccessDeniedException;
 import ai.fabric.chat.exception.ChatSessionNotFoundException;
-import dev.aifabric.course.support.common.FeatureUnavailableException;
+import dev.aifabric.course.support.identity.CourseAccessDeniedException;
 import dev.aifabric.course.support.knowledge.ArticleNotFoundException;
+import dev.aifabric.course.support.knowledge.EvidenceBoundaryException;
 import dev.aifabric.course.support.knowledge.EvidenceOperationException;
-import java.net.URI;
+import dev.aifabric.course.support.privacy.PrivacyBoundaryException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,15 +14,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
-
-    @ExceptionHandler(FeatureUnavailableException.class)
-    ProblemDetail handleFeatureUnavailable(FeatureUnavailableException exception) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_IMPLEMENTED, exception.getMessage());
-        problem.setTitle("Course capability not implemented");
-        problem.setType(URI.create("https://ai-fabric.dev/problems/course-capability-not-implemented"));
-        problem.setProperty("capability", exception.getCapability());
-        return problem;
-    }
 
     @ExceptionHandler(ArticleNotFoundException.class)
     ProblemDetail handleNotFound(ArticleNotFoundException exception) {
@@ -43,5 +35,20 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ChatSessionNotFoundException.class)
     ProblemDetail handleConversationNotFound(ChatSessionNotFoundException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Conversation was not found");
+    }
+
+    @ExceptionHandler(CourseAccessDeniedException.class)
+    ProblemDetail handleCourseAccessDenied(CourseAccessDeniedException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Course capability access denied");
+    }
+
+    @ExceptionHandler({EvidenceBoundaryException.class, PrivacyBoundaryException.class})
+    ProblemDetail handleSecurityBoundaryFailure(RuntimeException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "The request could not be completed under the configured security policy."
+        );
+        problem.setTitle("Security policy could not be proved");
+        return problem;
     }
 }

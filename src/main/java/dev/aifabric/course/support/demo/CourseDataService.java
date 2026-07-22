@@ -7,6 +7,7 @@ import dev.aifabric.course.support.knowledge.KnowledgeArticle;
 import dev.aifabric.course.support.knowledge.KnowledgeArticleRepository;
 import dev.aifabric.course.support.policy.SupportPolicy;
 import dev.aifabric.course.support.policy.SupportPolicyRepository;
+import dev.aifabric.course.support.message.SupportMessageRepository;
 import dev.aifabric.course.support.ticket.SupportTicket;
 import dev.aifabric.course.support.ticket.SupportTicketRepository;
 import java.time.Instant;
@@ -20,30 +21,37 @@ public class CourseDataService {
 
     public static final String COURSE_TENANT = "tenant-blue";
     public static final String COURSE_CUSTOMER = "customer-alex";
+    public static final String SECOND_TENANT = "tenant-red";
+    public static final String SECOND_CUSTOMER = "customer-riley";
 
     private final KnowledgeArticleRepository articleRepository;
     private final SupportPolicyRepository policyRepository;
     private final CustomerAccountRepository accountRepository;
     private final SupportTicketRepository ticketRepository;
+    private final SupportMessageRepository messageRepository;
     private final Optional<ChatSessionService> chatSessionService;
 
     public CourseDataService(KnowledgeArticleRepository articleRepository,
                              SupportPolicyRepository policyRepository,
                              CustomerAccountRepository accountRepository,
                              SupportTicketRepository ticketRepository,
+                             SupportMessageRepository messageRepository,
                              Optional<ChatSessionService> chatSessionService) {
         this.articleRepository = articleRepository;
         this.policyRepository = policyRepository;
         this.accountRepository = accountRepository;
         this.ticketRepository = ticketRepository;
+        this.messageRepository = messageRepository;
         this.chatSessionService = chatSessionService;
     }
 
     @Transactional
     public DatasetSnapshot reset() {
-        chatSessionService.ifPresent(service -> service.getUserConversations(COURSE_CUSTOMER)
-            .forEach(session -> service.deleteConversation(session.getId(), COURSE_CUSTOMER)));
+        chatSessionService.ifPresent(service -> List.of(COURSE_CUSTOMER, SECOND_CUSTOMER).forEach(owner ->
+            service.getUserConversations(owner)
+                .forEach(session -> service.deleteConversation(session.getId(), owner))));
         ticketRepository.deleteAll();
+        messageRepository.deleteAll();
         policyRepository.deleteAll();
         articleRepository.deleteAll();
         accountRepository.deleteAll();
@@ -60,6 +68,13 @@ public class CourseDataService {
             "PRO",
             "CUSTOMER"
         ));
+        accountRepository.save(new CustomerAccount(
+            SECOND_CUSTOMER,
+            SECOND_TENANT,
+            "riley@example.test",
+            "STANDARD",
+            "CUSTOMER"
+        ));
         articleRepository.saveAll(seedArticles());
         policyRepository.saveAll(seedPolicies());
         ticketRepository.save(new SupportTicket(
@@ -71,6 +86,16 @@ public class CourseDataService {
             "OPEN",
             "MEDIUM",
             Instant.parse("2026-07-01T10:00:00Z")
+        ));
+        ticketRepository.save(new SupportTicket(
+            "T-2002",
+            SECOND_TENANT,
+            SECOND_CUSTOMER,
+            "VPN access fails after password reset",
+            "The tenant-red VPN still rejects the refreshed credentials.",
+            "OPEN",
+            "HIGH",
+            Instant.parse("2026-07-02T11:00:00Z")
         ));
         return snapshot();
     }
@@ -140,6 +165,39 @@ public class CourseDataService {
                 COURSE_TENANT,
                 "PUBLISHED",
                 "Internal exception paths and fraud-review rules are staff-only."
+            ),
+            new KnowledgeArticle(
+                "article-vpn-blue",
+                "VPN recovery",
+                "Tenant Blue users should refresh their device certificate before reconnecting to VPN.",
+                "network-access",
+                COURSE_TENANT,
+                "PUBLISHED",
+                "INTERNAL",
+                true,
+                "Blue network topology must remain private."
+            ),
+            new KnowledgeArticle(
+                "article-vpn-red",
+                "VPN recovery",
+                "Tenant Red users must enroll the replacement device before reconnecting to VPN.",
+                "network-access",
+                SECOND_TENANT,
+                "PUBLISHED",
+                "INTERNAL",
+                true,
+                "Red device inventory must remain private."
+            ),
+            new KnowledgeArticle(
+                "article-payroll-red-restricted",
+                "Payroll escalation",
+                "Tenant Red payroll incidents route to the restricted finance response team.",
+                "finance-operations",
+                SECOND_TENANT,
+                "PUBLISHED",
+                "RESTRICTED",
+                false,
+                "Restricted finance contacts must never enter user-facing evidence."
             )
         );
     }

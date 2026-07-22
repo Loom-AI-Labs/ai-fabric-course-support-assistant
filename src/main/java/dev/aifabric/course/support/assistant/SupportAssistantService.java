@@ -11,7 +11,12 @@ import ai.fabric.llm.structured.StructuredJsonCallSpec;
 import ai.fabric.llm.structured.StructuredJsonProviderHints;
 import ai.fabric.llm.structured.StructuredJsonResult;
 import ai.fabric.spi.RAGProvider;
+import ai.fabric.util.VectorMetadataFilterSupport;
+import dev.aifabric.course.support.identity.CourseAuthorizationService;
+import dev.aifabric.course.support.identity.CoursePrincipal;
 import dev.aifabric.course.support.knowledge.KnowledgeArticle;
+import dev.aifabric.course.support.privacy.PrivacyBoundaryException;
+import dev.aifabric.course.support.privacy.SafePIIProcessor;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -45,24 +50,38 @@ public class SupportAssistantService {
     private final RAGProvider ragProvider;
     private final AICoreService aiCoreService;
     private final StructuredJsonCallExecutor structuredJsonCallExecutor;
+    private final CourseAuthorizationService authorizationService;
+    private final SafePIIProcessor piiProcessor;
 
     public SupportAssistantService(RAGProvider ragProvider,
                                    AICoreService aiCoreService,
-                                   StructuredJsonCallExecutor structuredJsonCallExecutor) {
+                                   StructuredJsonCallExecutor structuredJsonCallExecutor,
+                                   CourseAuthorizationService authorizationService,
+                                   SafePIIProcessor piiProcessor) {
         this.ragProvider = ragProvider;
         this.aiCoreService = aiCoreService;
         this.structuredJsonCallExecutor = structuredJsonCallExecutor;
+        this.authorizationService = authorizationService;
+        this.piiProcessor = piiProcessor;
     }
 
-    public SupportAnswer answer(String question) {
+    public SupportAnswer answer(String question, CoursePrincipal principal) {
+        CoursePrincipal authorized = authorizationService.requireScope(principal, "support:read");
+        String safeQuestion;
+        try {
+            safeQuestion = piiProcessor.process(question).value();
+        } catch (PrivacyBoundaryException exception) {
+            return privacyFailed();
+        }
+        Map<String, Object> requiredFilters = requiredEvidenceFilters(authorized);
         RAGResponse retrieval;
         try {
             retrieval = ragProvider.performRAGQuery(RAGRequest.builder()
-                .query(question)
+                .query(safeQuestion)
                 .entityType(KnowledgeArticle.ENTITY_TYPE)
                 .limit(RESULT_LIMIT)
                 .threshold(RESULT_THRESHOLD)
-                .filters(Map.of("status", "PUBLISHED"))
+                .filters(requiredFilters)
                 .includeMetadata(true)
                 .enableHybridSearch(false)
                 .enableContextualSearch(false)
@@ -79,6 +98,10 @@ public class SupportAssistantService {
         List<RAGResponse.RAGDocument> documents = safeDocuments(retrieval);
         if (documents.isEmpty()) {
             return noEvidence(retrieval.getRequestId());
+        }
+        if (documents.stream().anyMatch(document -> !VectorMetadataFilterSupport.matchesPortableEquals(
+            safeMetadata(document.getMetadata()), requiredFilters))) {
+            return retrievalFailed();
         }
 
         List<SupportAnswer.EvidenceItem> evidence = documents.stream()
@@ -113,7 +136,7 @@ public class SupportAssistantService {
                             .generationType("grounded-support-answer")
                             .systemPrompt(SYSTEM_PROMPT)
                             .context(context)
-                            .prompt("Support question:\n" + question + repairInstruction)
+                            .prompt("Support question:\n" + safeQuestion + repairInstruction)
                             .parameters(StructuredJsonProviderHints.jsonObjectResponseParameters())
                             .build(),
                         LlmPurpose.GENERATION
@@ -132,6 +155,12 @@ public class SupportAssistantService {
         }
 
         GroundedGeneration value = generation.getValue();
+        String safeAnswer;
+        try {
+            safeAnswer = piiProcessor.process(value.answer()).value();
+        } catch (PrivacyBoundaryException exception) {
+            return privacyFailed();
+        }
         Set<String> cited = new HashSet<>(value.citationIds());
         List<SupportAnswer.EvidenceItem> citedEvidence = evidence.stream()
             .filter(item -> cited.contains(item.id()))
@@ -143,7 +172,7 @@ public class SupportAssistantService {
 
         return new SupportAnswer(
             SupportAnswer.Status.ANSWERED,
-            value.answer().trim(),
+            safeAnswer.trim(),
             null,
             MODE,
             citedEvidence,
@@ -206,7 +235,24 @@ public class SupportAssistantService {
         Map<String, Object> allowed = new LinkedHashMap<>();
         copyIfPresent(metadata, allowed, "title");
         copyIfPresent(metadata, allowed, "category");
+        copyIfPresent(metadata, allowed, "tenantId");
+        copyIfPresent(metadata, allowed, "visibleToUser");
+        copyIfPresent(metadata, allowed, "status");
         return Map.copyOf(allowed);
+    }
+
+    private Map<String, Object> requiredEvidenceFilters(CoursePrincipal principal) {
+        Map<String, Object> filters = Map.of(
+            "tenantId", principal.tenantId(),
+            "visibleToUser", true,
+            "status", "PUBLISHED"
+        );
+        VectorMetadataFilterSupport.ValidationResult validation =
+            VectorMetadataFilterSupport.validatePortableEquals(filters);
+        if (validation.hasRejectedFilters() || validation.terms().size() != filters.size()) {
+            throw new IllegalStateException("Required tenant filters are not portable");
+        }
+        return filters;
     }
 
     private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
@@ -261,6 +307,17 @@ public class SupportAssistantService {
             MODE,
             List.of(),
             diagnostics(true, true, requestId, "LLM_GENERATION_FAILED")
+        );
+    }
+
+    private SupportAnswer privacyFailed() {
+        return new SupportAnswer(
+            SupportAnswer.Status.PRIVACY_FAILED,
+            null,
+            "The request could not be processed under the configured privacy policy.",
+            MODE,
+            List.of(),
+            diagnostics(false, false, null, "PII_PROCESSING_FAILED")
         );
     }
 

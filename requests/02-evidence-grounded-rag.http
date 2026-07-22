@@ -1,3 +1,5 @@
+@alexToken = course-alex-local-token
+
 ### Reset both application records and vector evidence
 POST http://localhost:8080/api/demo/reset
 
@@ -6,6 +8,7 @@ POST http://localhost:8080/api/demo/seed
 
 ### The application must return NO_EVIDENCE and skip the LLM
 POST http://localhost:8080/api/assistant/query
+Authorization: Bearer {{alexToken}}
 Content-Type: application/json
 
 {
@@ -17,6 +20,7 @@ POST http://localhost:8080/api/demo/index
 
 ### The answer must cite policy-account-lockout-01
 POST http://localhost:8080/api/assistant/query
+Authorization: Bearer {{alexToken}}
 Content-Type: application/json
 
 {
@@ -28,6 +32,7 @@ POST http://localhost:8080/api/demo/vectors/clear
 
 ### Prove that source rows alone cannot ground an answer
 POST http://localhost:8080/api/assistant/query
+Authorization: Bearer {{alexToken}}
 Content-Type: application/json
 
 {

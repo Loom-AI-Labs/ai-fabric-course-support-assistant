@@ -40,6 +40,14 @@ public class KnowledgeArticle {
     @AIContext(dataType = "enum")
     private String status;
 
+    @Column(nullable = false)
+    @AIContext(dataType = "enum", description = "Application-reviewed evidence visibility")
+    private String visibility;
+
+    @Column(nullable = false)
+    @AIContext(description = "Positive application-owned user visibility decision")
+    private boolean visibleToUser;
+
     @Column(length = 2_000)
     private String internalNotes;
 
@@ -48,12 +56,19 @@ public class KnowledgeArticle {
 
     public KnowledgeArticle(String id, String title, String body, String category, String tenantId,
                             String status, String internalNotes) {
+        this(id, title, body, category, tenantId, status, "INTERNAL", true, internalNotes);
+    }
+
+    public KnowledgeArticle(String id, String title, String body, String category, String tenantId,
+                            String status, String visibility, boolean visibleToUser, String internalNotes) {
         this.id = id;
         this.title = title;
         this.body = body;
         this.category = category;
         this.tenantId = tenantId;
         this.status = status;
+        this.visibility = visibility;
+        this.visibleToUser = visibleToUser;
         this.internalNotes = internalNotes;
     }
 
@@ -87,6 +102,14 @@ public class KnowledgeArticle {
 
     public String getStatus() {
         return status;
+    }
+
+    public String getVisibility() {
+        return visibility;
+    }
+
+    public boolean isVisibleToUser() {
+        return visibleToUser;
     }
 
     public String getInternalNotes() {

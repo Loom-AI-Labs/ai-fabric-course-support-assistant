@@ -22,3 +22,28 @@ ai-entities:
         type: "string"
       - name: "status"
         type: "string"
+      - name: "visibility"
+        type: "string"
+      - name: "visibleToUser"
+        type: "boolean"
+  support-message:
+    entity-type: "support-message"
+    features: ["embedding", "search"]
+    auto-process: false
+    auto-embedding: true
+    indexable: true
+    enable-search: true
+    searchable-fields:
+      - name: "safeContent"
+        weight: 1.0
+    metadata-fields:
+      - name: "id"
+        type: "string"
+      - name: "tenantId"
+        type: "string"
+      - name: "customerId"
+        type: "string"
+      - name: "detectedPiiTypes"
+        type: "string"
+      - name: "visibleToUser"
+        type: "boolean"

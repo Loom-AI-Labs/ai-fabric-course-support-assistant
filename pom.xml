@@ -55,6 +55,10 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
@@ -86,6 +90,10 @@
         <dependency>
             <groupId>io.github.loom-ai-labs</groupId>
             <artifactId>ai-fabric-chat-session</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.loom-ai-labs</groupId>
+            <artifactId>ai-fabric-pii</artifactId>
         </dependency>
         <dependency>
             <groupId>ai.djl.huggingface</groupId>
