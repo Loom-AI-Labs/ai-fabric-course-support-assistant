@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CourseReadinessService {
 
-    public static final String CHECKPOINT = "course-0.3.3-p05-live-data-sync";
+    public static final String CHECKPOINT = "course-0.3.3-p06-rag-quality";
 
     private final CourseDataService dataService;
     private final Environment environment;
@@ -73,6 +73,7 @@ public class CourseReadinessService {
         capabilities.put("promptOverlays", true);
         capabilities.put("migrationBackfill", true);
         capabilities.put("liveDataSync", true);
+        capabilities.put("ragQualityGates", true);
 
         return new ReadinessResponse(
             CHECKPOINT,

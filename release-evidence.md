@@ -1,6 +1,6 @@
 # Course Support Assistant Release Evidence
 
-Candidate checkpoint: `course-0.3.3-p05-live-data-sync`
+Candidate checkpoint: `course-0.3.3-p06-rag-quality`
 Framework baseline: AI Fabric `0.3.3`  
 Required release posture: Java 21, local ONNX embeddings, Lucene vectors, no generation fallback
 
@@ -19,6 +19,7 @@ packaged-smoke artifacts for the exact source commit. A missing or skipped row i
 | Privacy | `SecurityPrivacyIntegrationTest` and `SafePIIProcessorTest` | detector exception, unchanged payload, and exposed original all fail closed | raw email and SSN are absent from API, database, vector, prompt, output, and chat history |
 | Migration backfill | `KnowledgeMigrationIntegrationTest` | denied admin access, missing jobs, invalid transitions, and cancellation remain visible | private notes stay out of queue payloads and an idempotent rerun adds no duplicate vector work |
 | Live Data Sync | `KnowledgeDataSyncIntegrationTest` | unauthorized/raw access, invalid projection, batch limit, and partial failure are explicit | failed upsert rolls back source; update replaces stale content; delete removes source and vector |
+| RAG quality | `RagQualityIntegrationTest`, `CoursePromptOverlayContractTest`, and `SupportAssistantServiceTest` | no-source, insufficient-context, retrieval failure, generation failure, and stale-source cases remain visible | expected/forbidden IDs and source fragments are checked before optional model observation; prompt bodies are not exposed |
 | Build identity | `CourseDeploymentInfoServiceTest` and `CourseApiTest.healthReportsBuildAndProviderPostureWithoutCredentials` | unavailable source metadata is reported as `unknown` | health never exposes credentials |
 | Packaged runtime | `scripts/smoke-packaged.sh` | missing/invalid credentials return 401 and every failed assertion exits non-zero | cross-tenant evidence and raw PII are absent from responses and logs |
 

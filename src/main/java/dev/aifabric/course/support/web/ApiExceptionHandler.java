@@ -85,4 +85,9 @@ public class ApiExceptionHandler {
     ProblemDetail handleMigrationTransition(MigrationTransitionException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ProblemDetail handleInvalidRequest(IllegalArgumentException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
 }

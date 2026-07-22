@@ -28,6 +28,25 @@ public class CoursePromptDiagnosticsService {
         return new PromptPosture(bundleProperties.candidateVersions(), Map.copyOf(resolvedVersions));
     }
 
+    public PromptQualityContract qualityContract() {
+        var answer = resolver.resolve("rag/generation", "answer").template();
+        var fallback = resolver.resolve("intent-extraction/multi-step", "select-actions").template();
+        String body = answer.template();
+        boolean querySlotPresent = body != null && body.contains("{{query}}");
+        boolean contextSlotPresent = body != null && body.contains("{{context}}");
+        boolean passed = "v1-course-support".equals(answer.key().version())
+            && "v1".equals(fallback.key().version())
+            && querySlotPresent
+            && contextSlotPresent;
+        return new PromptQualityContract(
+            passed,
+            answer.key().version(),
+            fallback.key().version(),
+            querySlotPresent,
+            contextSlotPresent
+        );
+    }
+
     private String version(String family, String name) {
         return resolver.resolve(family, name).template().key().version();
     }
@@ -37,5 +56,14 @@ public class CoursePromptDiagnosticsService {
             candidateVersions = List.copyOf(candidateVersions);
             resolvedVersions = Map.copyOf(resolvedVersions);
         }
+    }
+
+    public record PromptQualityContract(
+        boolean passed,
+        String supportAnswerVersion,
+        String baseFallbackVersion,
+        boolean querySlotPresent,
+        boolean contextSlotPresent
+    ) {
     }
 }

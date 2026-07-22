@@ -1,0 +1,61 @@
+@baseUrl = http://localhost:8080
+@alex = course-alex-local-token
+@riley = course-riley-local-token
+
+### Reset, seed, and index the deterministic corpus
+POST {{baseUrl}}/api/demo/reset
+
+###
+POST {{baseUrl}}/api/demo/seed
+
+###
+POST {{baseUrl}}/api/demo/index
+
+### Run Tenant Blue's golden evidence suite
+GET {{baseUrl}}/api/quality/rag/golden
+Authorization: Bearer {{alex}}
+
+### Run Tenant Red's suite; it must not return Tenant Blue or restricted evidence
+GET {{baseUrl}}/api/quality/rag/golden
+Authorization: Bearer {{riley}}
+
+### Prove insufficient context is a visible failed quality case
+POST {{baseUrl}}/api/quality/rag/evaluate
+Authorization: Bearer {{alex}}
+Content-Type: application/json
+
+{
+  "caseId": "missing-retention-policy",
+  "question": "How long are audit logs retained?",
+  "expectedEvidenceIds": ["article-audit-retention"]
+}
+
+### Inspect prompt structure and overlay/base resolution without exposing prompt bodies
+GET {{baseUrl}}/api/quality/prompts
+Authorization: Bearer {{alex}}
+
+### Clear only derived vectors
+POST {{baseUrl}}/api/demo/vectors/clear
+
+### Prove an empty index is an expected no-source result
+POST {{baseUrl}}/api/quality/rag/evaluate
+Authorization: Bearer {{alex}}
+Content-Type: application/json
+
+{
+  "caseId": "empty-index",
+  "question": "How do I recover access?",
+  "expectNoEvidence": true
+}
+
+### Restore evidence after the no-source case
+POST {{baseUrl}}/api/demo/index
+
+### The local profile has no generation provider; this must be HTTP 503, never a canned answer
+POST {{baseUrl}}/api/assistant/query
+Authorization: Bearer {{alex}}
+Content-Type: application/json
+
+{
+  "message": "What should I do after failed sign-ins locked my account?"
+}

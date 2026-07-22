@@ -10,13 +10,12 @@ tag is a lesson checkpoint.
 
 ## Current Checkpoint
 
-The fifth Production checkpoint keeps the initial migration and adds trusted live synchronization
-for later article creates, updates, and deletes. The application API derives identity, tenant,
-scopes, vector space, and projection from server-owned state before invoking AI Fabric Data Sync.
-The raw framework DTO endpoint is denied externally, internal bypass remains disabled, and source
-transactions fail when evidence synchronization fails. Tests prove stable update identity, stale-
-vector deletion, access denial, invalid-content rollback, batch limits, and visible partial batch
-failure. The packaged gate repeats the lifecycle with real ONNX embeddings and Lucene.
+The sixth Production checkpoint turns RAG expectations into an executable quality gate. Authenticated
+golden suites assert expected evidence IDs, forbidden cross-tenant IDs, required source fragments,
+and stale fragments without comparing generated prose. Separate cases prove an empty index,
+insufficient context, fresh post-update evidence, overlay/base prompt structure, and visible provider
+failure. The packaged gate runs the scorecard with real ONNX embeddings and Lucene; no cloud key is
+required.
 
 ## Requirements
 
@@ -74,6 +73,10 @@ curl -s -X PUT http://localhost:8080/api/knowledge/articles/article-live-sync \
   -H 'Content-Type: application/json' \
   -d '{"title":"Replace a password with a security key","body":"Register the hardware security key, verify it, then revoke the previous login method."}'
 curl -s -X DELETE http://localhost:8080/api/knowledge/articles/article-live-sync \
+  -H "Authorization: Bearer $COURSE_TOKEN"
+curl -s http://localhost:8080/api/quality/rag/golden \
+  -H "Authorization: Bearer $COURSE_TOKEN"
+curl -s http://localhost:8080/api/quality/prompts \
   -H "Authorization: Bearer $COURSE_TOKEN"
 curl -s http://localhost:8080/api/demo/readiness
 curl -s http://localhost:8080/api/demo/health
@@ -140,6 +143,12 @@ orchestration and generation models, ONNX for local embeddings, and Lucene for l
 returns `RETRIEVAL_FAILED`; a provider or structured-citation failure returns `GENERATION_FAILED`
 with HTTP 503 and no canned answer.
 
+The RAG scorecard does not grade model wording. It gates the deterministic boundary first: source
+IDs, tenant exclusions, current source fragments, no-source behavior, and prompt resource shape.
+An optional OpenAI run can be retained as model observation, but it cannot turn a failed evidence
+case into a pass. A scorecard result uses `passed=false` plus failure codes such as
+`EXPECTED_EVIDENCE_MISSING` or `STALE_CONTENT_RETURNED`; HTTP success only means the evaluation ran.
+
 `./mvnw clean verify` needs no API key. Tests use explicitly labelled, test-only embedding,
 orchestration, and generation providers without pretending to be live AI. They inject valid structured intents, then
 exercise the real AI Fabric pipeline, JPA chat storage, role-aware history, session-backed pending
@@ -198,6 +207,7 @@ tokenizer. They contain no ranking logic and do not replace AI Fabric's ONNX inf
 | `course-0.3.3-p03-prompt-overlays` | Application prompt overlays, curated fallback, and safe diagnostics |
 | `course-0.3.3-p04-migration-backfill` | Admin-scoped migration, durable indexing, readiness, and idempotent backfill |
 | `course-0.3.3-p05-live-data-sync` | Trusted create/update/delete synchronization, stable identity, and visible batch failure |
+| `course-0.3.3-p06-rag-quality` | Golden evidence IDs, tenant exclusions, freshness, no-source, and prompt regression gates |
 
 Do not move an existing checkpoint tag. Course corrections receive a new course patch version.
 
@@ -216,6 +226,7 @@ confirmation state, and provider integration as those capabilities are introduce
 - `src/main/resources/prompts/` contains the narrow, tested course-support prompt overlay.
 - `requests/production-04-migration-backfill.http` exercises the migration lifecycle.
 - `requests/production-05-live-data-sync.http` exercises the trusted incremental sync lifecycle.
+- `requests/production-06-rag-quality.http` exercises deterministic RAG and prompt quality gates.
 - `scripts/reset-course.sh` restores the deterministic fixture state.
 - `scripts/smoke-packaged.sh` proves the packaged ONNX/Lucene application over HTTP.
 - `.github/workflows/verify.yml` runs both gates and retains their reports.

@@ -144,6 +144,33 @@ jq -e --argjson completed "${completed_before_rerun}" \
     and .completedQueueEntries == $completed' \
   "${REPORT_DIR}/migration-rerun.json" >/dev/null || fail "migration rerun was not idempotent"
 
+curl --fail --silent --show-error "${BASE_URL}/api/quality/rag/golden" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  >"${REPORT_DIR}/quality-golden-alex.json" || fail "Tenant Blue golden RAG suite failed"
+curl --fail --silent --show-error "${BASE_URL}/api/quality/rag/golden" \
+  -H 'Authorization: Bearer course-riley-local-token' \
+  >"${REPORT_DIR}/quality-golden-riley.json" || fail "Tenant Red golden RAG suite failed"
+jq -e '.passed == true and .totalCases == 3 and .failedCases == 0
+  and any(.cases[]; .caseId == "tenant-blue-vpn"
+    and (.observedEvidenceIds | index("article-vpn-blue")) != null
+    and (.observedEvidenceIds | index("article-vpn-red")) == null)' \
+  "${REPORT_DIR}/quality-golden-alex.json" >/dev/null || fail "Tenant Blue golden evidence gate failed"
+jq -e '.passed == true and .totalCases == 1
+  and .cases[0].caseId == "tenant-red-vpn"
+  and (.cases[0].observedEvidenceIds | index("article-vpn-red")) != null
+  and (.cases[0].observedEvidenceIds | index("article-vpn-blue")) == null
+  and (.cases[0].observedEvidenceIds | index("article-payroll-red-restricted")) == null' \
+  "${REPORT_DIR}/quality-golden-riley.json" >/dev/null || fail "Tenant Red golden evidence gate failed"
+
+curl --fail --silent --show-error -X POST "${BASE_URL}/api/quality/rag/evaluate" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"caseId":"insufficient-context","question":"How long are audit logs retained?","expectedEvidenceIds":["article-audit-retention"]}' \
+  >"${REPORT_DIR}/quality-insufficient-context.json" || fail "insufficient-context quality case failed"
+jq -e '.passed == false and (.failureCodes | index("EXPECTED_EVIDENCE_MISSING")) != null
+  and (.missingEvidenceIds | index("article-audit-retention")) != null' \
+  "${REPORT_DIR}/quality-insufficient-context.json" >/dev/null || fail "insufficient context was hidden"
+
 unauthorized_sync_status="$(curl --silent --show-error --output "${REPORT_DIR}/sync-unauthorized.json" \
   --write-out '%{http_code}' -X POST "${BASE_URL}/api/knowledge/articles" \
   -H 'Authorization: Bearer course-riley-local-token' \
@@ -196,6 +223,15 @@ jq -e '[.evidence[] | select(.evidenceId == "article-live-sync"
   and ((.content | contains("removing the password")) | not))] | length == 1' \
   "${REPORT_DIR}/sync-update-search.json" >/dev/null || fail "search returned stale evidence after update"
 
+curl --fail --silent --show-error -X POST "${BASE_URL}/api/quality/rag/evaluate" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"caseId":"live-sync-freshness","question":"How do I revoke the previous security key login?","expectedEvidenceIds":["article-live-sync"],"requiredContentFragments":["hardware security key"],"forbiddenContentFragments":["removing the password"]}' \
+  >"${REPORT_DIR}/quality-stale-source.json" || fail "stale-source quality case failed"
+jq -e '.passed == true and .returnedStaleContentFragments == []
+  and (.observedEvidenceIds | index("article-live-sync")) != null' \
+  "${REPORT_DIR}/quality-stale-source.json" >/dev/null || fail "stale-source gate did not pass"
+
 batch_limit_status="$(curl --silent --show-error --output "${REPORT_DIR}/sync-batch-limit.json" \
   --write-out '%{http_code}' -X POST "${BASE_URL}/api/knowledge/sync/reconcile" \
   -H 'Authorization: Bearer course-alex-local-token' \
@@ -238,6 +274,18 @@ jq -e '[.evidence[] | select(.evidenceId == "article-vpn-red")] | length == 1' \
 jq -e 'all(.evidence[]; .evidenceId != "article-vpn-blue" and .evidenceId != "article-payroll-red")' \
   "${REPORT_DIR}/riley-search.json" >/dev/null || fail "Tenant Red response leaked forbidden evidence"
 
+curl --fail --silent --show-error -X POST "${BASE_URL}/api/demo/vectors/clear" \
+  >"${REPORT_DIR}/quality-clear-vectors.json" || fail "quality no-source setup failed"
+curl --fail --silent --show-error -X POST "${BASE_URL}/api/quality/rag/evaluate" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"caseId":"empty-index","question":"How do I recover access?","expectNoEvidence":true}' \
+  >"${REPORT_DIR}/quality-no-source.json" || fail "no-source quality case failed"
+jq -e '.passed == true and .observedEvidenceIds == [] and .failureCodes == []' \
+  "${REPORT_DIR}/quality-no-source.json" >/dev/null || fail "no-source quality gate failed"
+curl --fail --silent --show-error -X POST "${BASE_URL}/api/demo/index" \
+  >"${REPORT_DIR}/quality-restore-index.json" || fail "quality index restore failed"
+
 curl --fail --silent --show-error -X POST "${BASE_URL}/api/support/messages" \
   -H 'Authorization: Bearer course-alex-local-token' \
   -H 'Content-Type: application/json' \
@@ -252,16 +300,33 @@ jq -e '.piiDetected == true and (.safeContent | contains("alex.private@example.c
 jq -e 'all(.[]; (.safeContent | contains("alex.private@example.com") | not) and (.safeContent | contains("123-45-6789") | not))' \
   "${REPORT_DIR}/stored-messages.json" >/dev/null || fail "stored message projection exposed raw PII"
 
+generation_failure_status="$(curl --silent --show-error --output "${REPORT_DIR}/quality-generation-failure.json" \
+  --write-out '%{http_code}' -X POST "${BASE_URL}/api/assistant/query" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"What should I do after failed sign-ins locked my account?"}')"
+[[ "${generation_failure_status}" == "503" ]] || fail "disabled generation provider did not fail visibly"
+jq -e '.status == "GENERATION_FAILED" and .answer == null
+  and .diagnostics.errorCode == "LLM_GENERATION_FAILED"' \
+  "${REPORT_DIR}/quality-generation-failure.json" >/dev/null || fail "generation failure returned a hidden fallback"
+
 curl --fail --silent --show-error "${BASE_URL}/api/demo/readiness" \
   >"${REPORT_DIR}/readiness.json" || fail "readiness failed"
 curl --fail --silent --show-error "${BASE_URL}/api/demo/prompts" \
   >"${REPORT_DIR}/prompt-posture.json" || fail "prompt posture failed"
+curl --fail --silent --show-error "${BASE_URL}/api/quality/prompts" \
+  -H 'Authorization: Bearer course-alex-local-token' \
+  >"${REPORT_DIR}/quality-prompt-contract.json" || fail "prompt quality contract failed"
 jq -e '.candidateVersions == ["v1-course-support", "v1-support", "v1"]
   and .resolvedVersions["intent-classifier"] == "v1-course-support"
   and .resolvedVersions["support-answer"] == "v1-course-support"
   and .resolvedVersions["action-selector"] == "v1"' \
   "${REPORT_DIR}/prompt-posture.json" >/dev/null || fail "prompt overlay resolution is incomplete"
-jq -e '.checkpoint == "course-0.3.3-p05-live-data-sync"
+jq -e '.passed == true and .supportAnswerVersion == "v1-course-support"
+  and .baseFallbackVersion == "v1" and .querySlotPresent == true
+  and .contextSlotPresent == true' \
+  "${REPORT_DIR}/quality-prompt-contract.json" >/dev/null || fail "prompt structural regression gate failed"
+jq -e '.checkpoint == "course-0.3.3-p06-rag-quality"
   and .indexedVectors == 9
   and .indexedMessageVectors == 1
   and .capabilities.tenantSecurity == true
@@ -269,10 +334,11 @@ jq -e '.checkpoint == "course-0.3.3-p05-live-data-sync"
   and .capabilities.modeRouting == true
   and .capabilities.promptOverlays == true
   and .capabilities.migrationBackfill == true
-  and .capabilities.liveDataSync == true' \
+  and .capabilities.liveDataSync == true
+  and .capabilities.ragQualityGates == true' \
   "${REPORT_DIR}/readiness.json" >/dev/null || fail "readiness contract is incomplete"
 jq -e '.status == "UP"
-  and .checkpoint == "course-0.3.3-p05-live-data-sync"
+  and .checkpoint == "course-0.3.3-p06-rag-quality"
   and .version != "unknown"
   and .aiFabricVersion == "0.3.3"
   and .commit != "unknown"
@@ -293,13 +359,14 @@ fi
 
 jq -n \
   --arg status PASS \
-  --arg checkpoint course-0.3.3-p05-live-data-sync \
+  --arg checkpoint course-0.3.3-p06-rag-quality \
   --arg profile local \
   --arg unauthenticatedStatus "${unauthenticated_status}" \
   --arg invalidCredentialStatus "${invalid_status}" \
   --arg unauthorizedSyncStatus "${unauthorized_sync_status}" \
   --arg rawSyncStatus "${raw_sync_status}" \
   --arg batchLimitStatus "${batch_limit_status}" \
+  --arg generationFailureStatus "${generation_failure_status}" \
   --slurpfile health "${REPORT_DIR}/deployment-health.json" \
   --slurpfile readiness "${REPORT_DIR}/readiness.json" \
   --slurpfile migration "${REPORT_DIR}/migration-progress.json" \
@@ -308,6 +375,13 @@ jq -n \
   --slurpfile syncUpdate "${REPORT_DIR}/sync-update.json" \
   --slurpfile syncDelete "${REPORT_DIR}/sync-delete.json" \
   --slurpfile syncBatchLimit "${REPORT_DIR}/sync-batch-limit.json" \
+  --slurpfile qualityGoldenAlex "${REPORT_DIR}/quality-golden-alex.json" \
+  --slurpfile qualityGoldenRiley "${REPORT_DIR}/quality-golden-riley.json" \
+  --slurpfile qualityNoSource "${REPORT_DIR}/quality-no-source.json" \
+  --slurpfile qualityInsufficient "${REPORT_DIR}/quality-insufficient-context.json" \
+  --slurpfile qualityStale "${REPORT_DIR}/quality-stale-source.json" \
+  --slurpfile qualityPrompts "${REPORT_DIR}/quality-prompt-contract.json" \
+  --slurpfile qualityGenerationFailure "${REPORT_DIR}/quality-generation-failure.json" \
   '{
     status: $status,
     checkpoint: $checkpoint,
@@ -317,6 +391,7 @@ jq -n \
     unauthorizedSyncStatus: $unauthorizedSyncStatus,
     rawSyncStatus: $rawSyncStatus,
     batchLimitStatus: $batchLimitStatus,
+    generationFailureStatus: $generationFailureStatus,
     deployment: $health[0],
     readiness: $readiness[0],
     migration: $migration[0],
@@ -326,6 +401,15 @@ jq -n \
       update: $syncUpdate[0],
       delete: $syncDelete[0],
       batchLimit: $syncBatchLimit[0]
+    },
+    ragQuality: {
+      goldenAlex: $qualityGoldenAlex[0],
+      goldenRiley: $qualityGoldenRiley[0],
+      noSource: $qualityNoSource[0],
+      insufficientContext: $qualityInsufficient[0],
+      staleSource: $qualityStale[0],
+      promptContract: $qualityPrompts[0],
+      generationFailure: $qualityGenerationFailure[0]
     }
   }' >"${REPORT_DIR}/packaged-smoke-summary.json"
 
