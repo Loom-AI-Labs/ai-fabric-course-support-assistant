@@ -1,0 +1,37 @@
+@baseUrl = http://localhost:8080
+@token = course-alex-local-token
+
+### The required local profile stays keyless and labels generation as disabled.
+GET {{baseUrl}}/api/demo/health
+
+### Reset, seed, and index the Support Knowledge Assistant.
+POST {{baseUrl}}/api/demo/reset
+
+###
+POST {{baseUrl}}/api/demo/seed
+
+###
+POST {{baseUrl}}/api/demo/index
+
+### GENERATION route: grounded answer generation uses ai.providers.generation.
+POST {{baseUrl}}/api/assistant/query
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "message": "What should I do if failed sign-ins locked me out?"
+}
+
+### ORCHESTRATION route: intent and action planning use ai.providers.orchestration.
+POST {{baseUrl}}/api/assistant/orchestrate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "message": "Why is ticket T-1001 unresolved?",
+  "conversationId": "course-provider-routing"
+}
+
+### With the openai profile, confirm both purpose routes and models without exposing a key.
+GET {{baseUrl}}/api/demo/health
+

@@ -3,9 +3,19 @@ ai:
     progressive:
       enabled: false
   providers:
-    llm-provider: course-test
+    llm-provider: course-generation-test
     embedding-provider: course-test
     enable-fallback: false
+    orchestration:
+      llm-provider: course-orchestration-test
+      model: course-test-orchestration
+      temperature: 0.0
+      max-tokens: 200
+    generation:
+      llm-provider: course-generation-test
+      model: course-test-generation
+      temperature: 0.2
+      max-tokens: 600
   vector-db:
     type: memory
   service:

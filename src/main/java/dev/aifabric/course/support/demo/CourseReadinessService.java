@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CourseReadinessService {
 
-    public static final String CHECKPOINT = "course-0.3.3-06-tested-solution";
+    public static final String CHECKPOINT = "course-0.3.3-p01-provider-routing";
 
     private final CourseDataService dataService;
     private final Environment environment;

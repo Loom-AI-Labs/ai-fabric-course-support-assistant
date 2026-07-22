@@ -119,20 +119,23 @@ jq -e 'all(.[]; (.safeContent | contains("alex.private@example.com") | not) and 
 
 curl --fail --silent --show-error "${BASE_URL}/api/demo/readiness" \
   >"${REPORT_DIR}/readiness.json" || fail "readiness failed"
-jq -e '.checkpoint == "course-0.3.3-06-tested-solution"
+jq -e '.checkpoint == "course-0.3.3-p01-provider-routing"
   and .indexedVectors == 9
   and .indexedMessageVectors == 1
   and .capabilities.tenantSecurity == true
   and .capabilities.piiProtection == true' \
   "${REPORT_DIR}/readiness.json" >/dev/null || fail "readiness contract is incomplete"
 jq -e '.status == "UP"
-  and .checkpoint == "course-0.3.3-06-tested-solution"
+  and .checkpoint == "course-0.3.3-p01-provider-routing"
   and .version != "unknown"
   and .aiFabricVersion == "0.3.3"
   and .commit != "unknown"
   and .provider.mode == "local-retrieval"
   and .provider.generationEnabled == false
+  and .provider.orchestration == "disabled"
+  and .provider.orchestrationModel == "disabled"
   and .provider.generation == "disabled"
+  and .provider.generationModel == "disabled"
   and .provider.embedding == "onnx"
   and .provider.vector == "lucene"
   and .provider.fallbackEnabled == false' \
@@ -144,7 +147,7 @@ fi
 
 jq -n \
   --arg status PASS \
-  --arg checkpoint course-0.3.3-06-tested-solution \
+  --arg checkpoint course-0.3.3-p01-provider-routing \
   --arg profile local \
   --arg unauthenticatedStatus "${unauthenticated_status}" \
   --arg invalidCredentialStatus "${invalid_status}" \

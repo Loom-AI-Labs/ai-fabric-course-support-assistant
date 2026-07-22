@@ -1,15 +1,20 @@
 ai:
   providers:
-    llm-provider: openai
-    embedding-provider: onnx
+    llm-provider: ${AI_LLM_PROVIDER:openai}
+    embedding-provider: ${AI_EMBEDDING_PROVIDER:onnx}
     enable-fallback: false
-    generation:
-      llm-provider: openai
-      model: ${OPENAI_MODEL:gpt-4o-mini}
+    orchestration:
+      llm-provider: ${AI_ORCHESTRATION_PROVIDER:openai}
+      model: ${AI_ORCHESTRATION_MODEL:${OPENAI_MODEL:gpt-4o-mini}}
       temperature: 0.1
-      max-tokens: 600
+      max-tokens: ${AI_ORCHESTRATION_MAX_TOKENS:400}
+    generation:
+      llm-provider: ${AI_GENERATION_PROVIDER:openai}
+      model: ${AI_GENERATION_MODEL:${OPENAI_MODEL:gpt-4o-mini}}
+      temperature: 0.3
+      max-tokens: ${AI_GENERATION_MAX_TOKENS:600}
     openai:
-      enabled: true
+      enabled: ${OPENAI_ENABLED:true}
       api-key: ${OPENAI_API_KEY:}
       base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
       model: ${OPENAI_MODEL:gpt-4o-mini}

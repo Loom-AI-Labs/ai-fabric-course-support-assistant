@@ -5,12 +5,15 @@ This repository is the standalone learner application for
 
 The course evolves one ordinary Spring Boot support application through semantic search,
 evidence-grounded RAG, governed actions, backend-owned conversation memory, tenant security,
-privacy, and release verification. Each immutable `course-0.3.3-*` tag is a lesson checkpoint.
+privacy, release verification, and production provider routing. Each immutable `course-0.3.3-*`
+tag is a lesson checkpoint.
 
 ## Current Checkpoint
 
-This final Core checkpoint turns the complete vertical slice into reproducible release evidence.
-The normal Maven gate runs 40 deterministic tests without API keys. A packaged-runtime script then
+This first Production checkpoint keeps the complete Core slice and adds separate orchestration and
+answer-generation provider/model configuration. The normal Maven gate runs 42 deterministic tests
+without API keys, including recording-provider proof for both `LlmPurpose` routes and a failure test
+that proves disabled fallback does not switch to the other purpose provider. A packaged-runtime script then
 starts the executable JAR with real ONNX embeddings and Lucene storage, exercises authentication,
 tenant isolation, indexing, search, and PII redaction over HTTP, and retains machine-readable
 evidence. `/api/demo/health` reports source-derived build identity and the configured provider
@@ -42,7 +45,11 @@ jq . target/course-release-evidence/packaged-smoke-summary.json
 For an optional live OpenAI exercise after the keyless gate:
 
 ```bash
-OPENAI_API_KEY=<set-locally> ./mvnw spring-boot:run -Dspring-boot.run.profiles=openai
+OPENAI_ENABLED=true \
+OPENAI_API_KEY=<set-locally> \
+AI_ORCHESTRATION_MODEL=gpt-4o-mini \
+AI_GENERATION_MODEL=gpt-4o-mini \
+./mvnw spring-boot:run -Dspring-boot.run.profiles=openai
 ```
 
 Then inspect the application manually:
@@ -101,13 +108,14 @@ database rows have not been indexed. The second returns `ANSWERED` with
 `policy-account-lockout-01` as validated evidence. `internalNotes` is deliberately not annotated
 and never enters vector content, the generation prompt, or the public response.
 
-The `openai` profile uses the Spring AI-backed OpenAI adapter for generation, ONNX for local
-embeddings, and Lucene for local vector search. Provider fallback is disabled. A retrieval failure
+The `openai` profile uses the Spring AI-backed OpenAI adapter with independently configurable
+orchestration and generation models, ONNX for local embeddings, and Lucene for local vector search.
+`/api/demo/health` reports both effective purpose routes and models. Provider fallback is disabled. A retrieval failure
 returns `RETRIEVAL_FAILED`; a provider or structured-citation failure returns `GENERATION_FAILED`
 with HTTP 503 and no canned answer.
 
-`./mvnw clean verify` needs no API key. Tests use explicitly labelled, test-only embedding and
-generation providers without pretending to be live AI. They inject valid structured intents, then
+`./mvnw clean verify` needs no API key. Tests use explicitly labelled, test-only embedding,
+orchestration, and generation providers without pretending to be live AI. They inject valid structured intents, then
 exercise the real AI Fabric pipeline, JPA chat storage, role-aware history, session-backed pending
 store, registry, annotations, argument binder, authorization hooks, domain transactions, exact
 metadata filtering, post-hit verification, and PII processing.
@@ -159,6 +167,7 @@ tokenizer. They contain no ranking logic and do not replace AI Fabric's ONNX inf
 | `course-0.3.3-04-memory` | Backend-owned conversation memory |
 | `course-0.3.3-05-security` | Tenant and privacy boundaries |
 | `course-0.3.3-06-tested-solution` | Complete release evidence |
+| `course-0.3.3-p01-provider-routing` | Purpose-specific provider and model routing |
 
 Do not move an existing checkpoint tag. Course corrections receive a new course patch version.
 

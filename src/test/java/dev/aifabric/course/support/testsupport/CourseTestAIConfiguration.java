@@ -29,36 +29,41 @@ public class CourseTestAIConfiguration {
     }
 
     @Bean
-    CourseTestGenerationProvider courseTestGenerationProvider() {
+    CourseTestGenerationProvider courseTestGenerationFixture() {
         return new CourseTestGenerationProvider();
+    }
+
+    @Bean
+    AIProvider courseTestOrchestrationProvider(CourseTestGenerationProvider fixture) {
+        return new CoursePurposeProvider(
+            "course-orchestration-test", "course-test-orchestration", fixture);
+    }
+
+    @Bean
+    AIProvider courseTestAnswerProvider(CourseTestGenerationProvider fixture) {
+        return new CoursePurposeProvider(
+            "course-generation-test", "course-test-generation", fixture);
     }
 
     /**
      * An explicitly test-only generation fixture. It never exists in a runtime application profile.
      */
-    public static final class CourseTestGenerationProvider implements AIProvider {
+    public static final class CourseTestGenerationProvider {
 
         private final AtomicInteger generationCalls = new AtomicInteger();
         private final AtomicBoolean failNext = new AtomicBoolean();
         private volatile String lastPrompt;
         private volatile List<AIChatMessage> lastMessages = List.of();
+        private volatile String lastProvider;
+        private volatile String lastModel;
         private volatile String response = """
             {"answer":"Wait fifteen minutes, then use account recovery to verify your registered email and reset access.","citationIds":["policy-account-lockout-01"]}
             """;
 
-        @Override
-        public String getProviderName() {
-            return "course-test";
-        }
-
-        @Override
-        public boolean isAvailable() {
-            return true;
-        }
-
-        @Override
-        public AIGenerationResponse generateContent(AIGenerationRequest request) {
+        private AIGenerationResponse generateContent(String providerName, AIGenerationRequest request) {
             generationCalls.incrementAndGet();
+            lastProvider = providerName;
+            lastModel = request != null ? request.getModel() : null;
             lastPrompt = (request != null ? request.getSystemPrompt() : "") + "\n"
                 + (request != null ? request.getContext() : "") + "\n"
                 + (request != null ? request.getPrompt() : "");
@@ -76,41 +81,11 @@ public class CourseTestAIConfiguration {
                 .entityType(request != null ? request.getEntityType() : null)
                 .generationType(request != null ? request.getGenerationType() : null)
                 .content(response)
-                .model("course-test-generation")
+                .model(lastModel)
                 .tokensUsed(0)
                 .processingTimeMs(0L)
                 .generatedAt(LocalDateTime.now())
                 .status("SUCCESS")
-                .build();
-        }
-
-        @Override
-        public AIEmbeddingResponse generateEmbedding(AIEmbeddingRequest request) {
-            throw new UnsupportedOperationException("The test generation provider does not provide embeddings");
-        }
-
-        @Override
-        public ProviderStatus getStatus() {
-            return ProviderStatus.builder()
-                .providerName(getProviderName())
-                .available(true)
-                .healthy(true)
-                .successRate(1.0)
-                .lastUpdated(LocalDateTime.now())
-                .details("explicitly test-only generation fixture")
-                .build();
-        }
-
-        @Override
-        public ProviderConfig getConfig() {
-            return ProviderConfig.builder()
-                .providerName(getProviderName())
-                .enabled(true)
-                .apiKey("test-only")
-                .baseUrl("test://course-generation")
-                .defaultModel("course-test-generation")
-                .timeoutSeconds(1)
-                .maxRetries(0)
                 .build();
         }
 
@@ -126,6 +101,14 @@ public class CourseTestAIConfiguration {
             return lastMessages;
         }
 
+        public String lastProvider() {
+            return lastProvider;
+        }
+
+        public String lastModel() {
+            return lastModel;
+        }
+
         public void failNext() {
             failNext.set(true);
         }
@@ -139,9 +122,70 @@ public class CourseTestAIConfiguration {
             failNext.set(false);
             lastPrompt = null;
             lastMessages = List.of();
+            lastProvider = null;
+            lastModel = null;
             response = """
                 {"answer":"Wait fifteen minutes, then use account recovery to verify your registered email and reset access.","citationIds":["policy-account-lockout-01"]}
                 """;
+        }
+    }
+
+    private static final class CoursePurposeProvider implements AIProvider {
+
+        private final String providerName;
+        private final String defaultModel;
+        private final CourseTestGenerationProvider fixture;
+
+        private CoursePurposeProvider(String providerName, String defaultModel,
+                                      CourseTestGenerationProvider fixture) {
+            this.providerName = providerName;
+            this.defaultModel = defaultModel;
+            this.fixture = fixture;
+        }
+
+        @Override
+        public String getProviderName() {
+            return providerName;
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return true;
+        }
+
+        @Override
+        public AIGenerationResponse generateContent(AIGenerationRequest request) {
+            return fixture.generateContent(providerName, request);
+        }
+
+        @Override
+        public AIEmbeddingResponse generateEmbedding(AIEmbeddingRequest request) {
+            throw new UnsupportedOperationException("The test generation provider does not provide embeddings");
+        }
+
+        @Override
+        public ProviderStatus getStatus() {
+            return ProviderStatus.builder()
+                .providerName(providerName)
+                .available(true)
+                .healthy(true)
+                .successRate(1.0)
+                .lastUpdated(LocalDateTime.now())
+                .details("explicitly test-only purpose provider")
+                .build();
+        }
+
+        @Override
+        public ProviderConfig getConfig() {
+            return ProviderConfig.builder()
+                .providerName(providerName)
+                .enabled(true)
+                .apiKey("test-only")
+                .baseUrl("test://" + providerName)
+                .defaultModel(defaultModel)
+                .timeoutSeconds(1)
+                .maxRetries(0)
+                .build();
         }
     }
 

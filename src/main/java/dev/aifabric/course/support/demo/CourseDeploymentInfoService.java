@@ -1,5 +1,6 @@
 package dev.aifabric.course.support.demo;
 
+import ai.fabric.config.AIProviderConfig;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -14,14 +15,17 @@ import org.springframework.util.StringUtils;
 public class CourseDeploymentInfoService {
 
     private final Environment environment;
+    private final AIProviderConfig providerConfig;
     private final Optional<BuildProperties> buildProperties;
     private final Optional<GitProperties> gitProperties;
     private final Instant startedAt = Instant.now();
 
     public CourseDeploymentInfoService(Environment environment,
+                                       AIProviderConfig providerConfig,
                                        Optional<BuildProperties> buildProperties,
                                        Optional<GitProperties> gitProperties) {
         this.environment = environment;
+        this.providerConfig = providerConfig;
         this.buildProperties = buildProperties;
         this.gitProperties = gitProperties;
     }
@@ -31,6 +35,8 @@ public class CourseDeploymentInfoService {
             "ai.service.features.enable-generation", Boolean.class, false);
         boolean fallbackEnabled = environment.getProperty(
             "ai.providers.enable-fallback", Boolean.class, false);
+        AIProviderConfig.GenerationDefaults orchestration = providerConfig.resolveOrchestrationLlmDefaults();
+        AIProviderConfig.GenerationDefaults generation = providerConfig.resolveGenerationLlmDefaults();
 
         return new DeploymentHealth(
             "UP",
@@ -59,9 +65,10 @@ public class CourseDeploymentInfoService {
             new ProviderPosture(
                 environment.getProperty("course.release.runtime-mode", "retrieval-only"),
                 generationEnabled,
-                generationEnabled
-                    ? environment.getProperty("ai.providers.llm-provider", "unconfigured")
-                    : "disabled",
+                generationEnabled ? orchestration.providerName() : "disabled",
+                generationEnabled ? orchestration.model() : "disabled",
+                generationEnabled ? generation.providerName() : "disabled",
+                generationEnabled ? generation.model() : "disabled",
                 environment.getProperty("ai.providers.embedding-provider", "unconfigured"),
                 environment.getProperty("ai.vector-db.type", "unconfigured"),
                 fallbackEnabled
@@ -113,7 +120,10 @@ public class CourseDeploymentInfoService {
     public record ProviderPosture(
         String mode,
         boolean generationEnabled,
+        String orchestration,
+        String orchestrationModel,
         String generation,
+        String generationModel,
         String embedding,
         String vector,
         boolean fallbackEnabled
