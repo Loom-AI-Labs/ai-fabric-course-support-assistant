@@ -10,11 +10,13 @@ tag is a lesson checkpoint.
 
 ## Current Checkpoint
 
-The seventh Production checkpoint preserves the Support Knowledge Assistant contract while adding a
-Docker Qdrant profile beside Lucene. Typed readiness reports provider capabilities and transport;
-the Docker gate proves 384-dimensional collections, required payload indexing, tenant filters,
-golden quality cases, stable Data Sync upsert/delete, durability posture, and visible failure when
-Qdrant is unreachable. ONNX remains the embedding provider and no cloud key is required.
+The final Production checkpoint turns the accumulated Support Knowledge Assistant into a
+release-verifiable service. A source-labelled, non-root container exposes independent database,
+vector, session, indexing, migration, and generation-provider readiness. The Docker release gate
+proves Qdrant and application-database persistence across restart, backend chat persistence,
+retention boundaries, quality after restart, and explicit failure when OpenAI is selected without
+its required key. ONNX remains the required embedding provider and the complete release gate is
+keyless.
 
 ## Requirements
 
@@ -28,19 +30,30 @@ Qdrant is unreachable. ONNX remains the embedding provider and no cloud key is r
 ./scripts/download-onnx-model.sh
 COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-packaged.sh
 COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-qdrant.sh
+./scripts/smoke-release.sh
+./scripts/smoke-openai-optional.sh
 ```
 
 The packaged script normally runs `clean package` itself. `COURSE_SMOKE_USE_EXISTING_JAR=true` is
 safe here because the immediately preceding `clean verify` already ran all tests and produced the
 JAR. The evidence is written to `target/course-release-evidence/`.
 
-The Qdrant script starts and removes a pinned local container. For manual exploration with durable
-local storage, use `docker compose -f compose.qdrant.yml up -d` and run the `qdrant` Spring profile.
+The Qdrant script starts and removes a pinned local container. The release script builds the exact
+Git commit into a non-root image, runs tests inside that image build, starts a durable H2 and Qdrant
+stack, restarts the application, verifies retained state, runs bounded cleanup, and proves that
+required OpenAI configuration fails fast without a key. `smoke-openai-optional.sh` writes `NOT_RUN`
+when no key is supplied; it never turns local evidence into a hosted-provider claim.
+
+For manual release-profile exploration, use `docker compose -f compose.release.yml up --build`.
+For provider-only exploration with durable local storage, use
+`docker compose -f compose.qdrant.yml up -d` and run the `qdrant` Spring profile.
 
 Inspect the packaged result:
 
 ```bash
 jq . target/course-release-evidence/packaged-smoke-summary.json
+jq . target/course-release-evidence/release-keyless-summary.json
+jq . target/course-release-evidence/openai-keyed-summary.json
 ```
 
 For an optional live OpenAI exercise after the keyless gate:
@@ -112,7 +125,8 @@ curl -s -X POST http://localhost:8080/api/support/messages \
 The RAG flow remains available at `/api/assistant/query`. The governed and conversational flow uses
 `/api/assistant/orchestrate`; copyable identity, tenant-isolation, pre-confirmation denial, PII, and
 release scenarios are in `requests/05-tenant-security-privacy.http` and
-`requests/06-test-and-ship.http`.
+`requests/06-test-and-ship.http`. The complete operations flow is in
+`requests/production-08-production-ready.http`.
 
 The default local credentials exist only to make the course reproducible. Alex belongs to
 `tenant-blue`; Riley belongs to `tenant-red`. Set `COURSE_ALEX_TOKEN` and `COURSE_RILEY_TOKEN` to
@@ -159,7 +173,8 @@ store, registry, annotations, argument binder, authorization hooks, domain trans
 metadata filtering, post-hit verification, and PII processing.
 
 `release-evidence.md` maps indexing, RAG, actions, memory, tenant security, privacy, build identity,
-and packaged runtime to success, failure, and forbidden-side-effect proof. Optional OpenAI,
+component readiness, restart survival, retention, and packaged runtime to success, failure, and
+forbidden-side-effect proof. Optional OpenAI,
 managed-vector, and deployed-frontend rows remain explicitly separate; a conditional or unexecuted
 row is never presented as a pass.
 
@@ -212,6 +227,7 @@ tokenizer. They contain no ranking logic and do not replace AI Fabric's ONNX inf
 | `course-0.3.3-p05-live-data-sync` | Trusted create/update/delete synchronization, stable identity, and visible batch failure |
 | `course-0.3.3-p06-rag-quality` | Golden evidence IDs, tenant exclusions, freshness, no-source, and prompt regression gates |
 | `course-0.3.3-p07-qdrant` | Docker Qdrant provider parity, diagnostics, lifecycle, filtering, and visible outage proof |
+| `course-0.3.3-p08-production-ready` | Source-labelled container, independent readiness, restart persistence, retention, and separate optional-provider evidence |
 
 Do not move an existing checkpoint tag. Course corrections receive a new course patch version.
 
@@ -232,9 +248,12 @@ confirmation state, and provider integration as those capabilities are introduce
 - `requests/production-05-live-data-sync.http` exercises the trusted incremental sync lifecycle.
 - `requests/production-06-rag-quality.http` exercises deterministic RAG and prompt quality gates.
 - `requests/production-07-qdrant.http` exercises the same contract against local Qdrant.
+- `requests/production-08-production-ready.http` exercises release readiness, persistence probes, and retention.
 - `scripts/reset-course.sh` restores the deterministic fixture state.
 - `scripts/smoke-packaged.sh` proves the packaged ONNX/Lucene application over HTTP.
 - `scripts/smoke-qdrant.sh` proves provider parity and failure behavior against Docker Qdrant.
-- `.github/workflows/verify.yml` runs both gates and retains their reports.
+- `scripts/smoke-release.sh` proves the exact container revision, restart durability, and cleanup boundaries.
+- `scripts/smoke-openai-optional.sh` records keyed OpenAI proof or an honest `NOT_RUN` artifact.
+- `.github/workflows/verify.yml` runs all required keyless gates and retains their reports.
 
 The learner repository never depends on a framework source checkout or unpublished example module.

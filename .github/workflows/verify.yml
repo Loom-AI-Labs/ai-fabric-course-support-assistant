@@ -52,3 +52,20 @@ jobs:
             target/surefire-reports/
             target/failsafe-reports/
             target/course-release-evidence/
+
+  release-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove source-labelled container, restart, retention, and missing-key behavior
+        run: ./scripts/smoke-release.sh
+      - name: Record optional OpenAI posture without borrowing keyless success
+        run: ./scripts/smoke-openai-optional.sh
+      - name: Retain release-container evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: course-release-container-evidence-${{ github.sha }}
+          if-no-files-found: warn
+          path: target/course-release-evidence/

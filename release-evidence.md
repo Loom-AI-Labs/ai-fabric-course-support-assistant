@@ -1,8 +1,9 @@
 # Course Support Assistant Release Evidence
 
-Candidate checkpoint: `course-0.3.3-p07-qdrant`
+Candidate checkpoint: `course-0.3.3-p08-production-ready`
 Framework baseline: AI Fabric `0.3.3`  
-Required release posture: Java 21, local ONNX embeddings, Lucene plus Docker Qdrant gates, no generation fallback
+Required release posture: Java 21, local ONNX embeddings, Lucene and Docker Qdrant gates, durable
+container state, no generation fallback
 
 This record maps every Core claim to executable evidence. CI retains the Surefire reports and the
 packaged-smoke artifacts for the exact source commit. A missing or skipped row is not a pass.
@@ -23,6 +24,10 @@ packaged-smoke artifacts for the exact source commit. A missing or skipped row i
 | Managed Qdrant | `QdrantProfileConfigurationTest` and `scripts/smoke-qdrant.sh` | an unreachable configured Qdrant returns 503 with no Lucene fallback | Docker proof checks dimensions, payload schema, tenant filters, stable update identity, delete count, and typed diagnostics |
 | Build identity | `CourseDeploymentInfoServiceTest` and `CourseApiTest.healthReportsBuildAndProviderPostureWithoutCredentials` | unavailable source metadata is reported as `unknown` | health never exposes credentials |
 | Packaged runtime | `scripts/smoke-packaged.sh` | missing/invalid credentials return 401 and every failed assertion exits non-zero | cross-tenant evidence and raw PII are absent from responses and logs |
+| Component readiness | `CourseOperationsServiceTest`, `OperationsProfileConfigurationTest`, and `scripts/smoke-release.sh` | a failed required component reports `DOWN` with a stable error code | optional disabled generation does not make a keyless deployment unready or expose a secret |
+| Restart persistence | `scripts/smoke-release.sh` | process identity must change and every missing state assertion exits non-zero | source rows, Qdrant evidence, chat turns, migration jobs, and indexing rows survive application restart |
+| Retention boundary | `CourseOperationsServiceTest.retentionRemovesOnlyExpiredOperationalState` and `scripts/smoke-release.sh` | maintenance and release-probe endpoints require admin scope and explicit enablement | cleanup removes old operational rows and sessions while preserving application source rows and vector evidence |
+| Provider credential posture | `scripts/smoke-release.sh` and `scripts/smoke-openai-optional.sh` | explicitly selected OpenAI without `OPENAI_API_KEY` fails startup with the validator message | keyless success is never presented as OpenAI success; keyed evidence is a separate artifact |
 
 ## Required Keyless Gate
 
@@ -31,6 +36,8 @@ packaged-smoke artifacts for the exact source commit. A missing or skipped row i
 ./scripts/download-onnx-model.sh
 COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-packaged.sh
 COURSE_SMOKE_USE_EXISTING_JAR=true ./scripts/smoke-qdrant.sh
+./scripts/smoke-release.sh
+./scripts/smoke-openai-optional.sh
 ```
 
 The deterministic suite uses explicit test-only providers and runs the real AI Fabric pipeline,
@@ -46,12 +53,19 @@ real Lucene storage. It records:
 - the packaged application log with raw-PII assertions;
 - 401 results for missing and invalid credentials.
 
+The release-container gate records `release-keyless-summary.json`. It proves the OCI revision and
+reported commit match the checked-out source, every required readiness component is independently
+`UP`, H2/Qdrant/chat/work state survives an application restart, deterministic quality remains
+green, and retention removes only eligible operational state. The OpenAI profile must fail startup
+when selected without a key. Optional live evidence is retained separately as
+`openai-keyed-summary.json`, including `NOT_RUN` when no key was supplied.
+
 ## Additional Evidence Classes
 
 | Evidence class | Core requirement | Status rule |
 | --- | --- | --- |
-| Keyed OpenAI | Optional for the keyless Core completion path | Record `PASS`, `FAIL`, or `NOT RUN`; never infer it from local tests |
-| Managed vector containers | Required local Qdrant gate | Retain `qdrant-smoke-summary.json`; Qdrant Cloud remains optional and separately labelled |
+| Keyed OpenAI | Optional for learner completion and separate from the required release gate | Retain `openai-keyed-summary.json` as `PASS`, `FAIL`, or `NOT_RUN`; never infer it from local tests |
+| Managed vector containers | Required local Qdrant and release-container gates | Retain `qdrant-smoke-summary.json` and `release-keyless-summary.json`; Qdrant Cloud remains optional and separately labelled |
 | Deployed frontend | Not applicable to this backend learner repository | Verify public HTML, hashed asset, backend commit, and browser network response separately when a UI is deployed |
 
 To add OpenAI evidence, run the `openai` profile with a runtime-only key and record the provider,
@@ -60,7 +74,8 @@ contain sensitive data.
 
 ## Release Decision Rule
 
-The candidate checkpoint is ready only when the clean build and packaged smoke both pass for the same
-source commit. Optional evidence remains explicitly `NOT RUN` unless it actually ran. Any failed
-required row, hidden provider fallback, cross-tenant leak, raw-PII leak, or test-skipping flag makes
-the candidate not ready.
+The candidate checkpoint is ready only when the clean build, packaged Lucene smoke, local Qdrant
+smoke, and source-labelled release-container smoke pass for the same source commit. Optional
+evidence remains explicitly `NOT_RUN` unless it actually ran. Any failed required row, hidden
+provider fallback, cross-tenant leak, raw-PII leak, ownership-crossing cleanup, incorrect build
+identity, lost restart state, or test-skipping flag makes the candidate not ready.

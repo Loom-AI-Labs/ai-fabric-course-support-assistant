@@ -1,6 +1,7 @@
 package dev.aifabric.course.support.config;
 
 import dev.aifabric.course.support.identity.CourseBearerAuthenticationFilter;
+import dev.aifabric.course.support.operations.CourseOperationsProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,7 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(CourseSecurityProperties.class)
+@EnableConfigurationProperties({CourseSecurityProperties.class, CourseOperationsProperties.class})
 public class CourseSecurityConfiguration {
 
     @Bean

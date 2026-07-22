@@ -312,6 +312,8 @@ jq -e '.status == "GENERATION_FAILED" and .answer == null
 
 curl --fail --silent --show-error "${BASE_URL}/api/demo/readiness" \
   >"${REPORT_DIR}/readiness.json" || fail "readiness failed"
+curl --fail --silent --show-error "${BASE_URL}/api/demo/operations/readiness" \
+  >"${REPORT_DIR}/operations-readiness.json" || fail "operations readiness failed"
 curl --fail --silent --show-error "${BASE_URL}/api/demo/prompts" \
   >"${REPORT_DIR}/prompt-posture.json" || fail "prompt posture failed"
 curl --fail --silent --show-error "${BASE_URL}/api/quality/prompts" \
@@ -326,7 +328,7 @@ jq -e '.passed == true and .supportAnswerVersion == "v1-course-support"
   and .baseFallbackVersion == "v1" and .querySlotPresent == true
   and .contextSlotPresent == true' \
   "${REPORT_DIR}/quality-prompt-contract.json" >/dev/null || fail "prompt structural regression gate failed"
-jq -e '.checkpoint == "course-0.3.3-p07-qdrant"
+jq -e '.checkpoint == "course-0.3.3-p08-production-ready"
   and .indexedVectors == 9
   and .indexedMessageVectors == 1
   and .capabilities.tenantSecurity == true
@@ -343,7 +345,7 @@ jq -e '.checkpoint == "course-0.3.3-p07-qdrant"
   and .vectorProvider.durableStorage == true' \
   "${REPORT_DIR}/readiness.json" >/dev/null || fail "readiness contract is incomplete"
 jq -e '.status == "UP"
-  and .checkpoint == "course-0.3.3-p07-qdrant"
+  and .checkpoint == "course-0.3.3-p08-production-ready"
   and .version != "unknown"
   and .aiFabricVersion == "0.3.3"
   and .commit != "unknown"
@@ -357,6 +359,18 @@ jq -e '.status == "UP"
   and .provider.vector == "lucene"
   and .provider.fallbackEnabled == false' \
   "${REPORT_DIR}/deployment-health.json" >/dev/null || fail "deployment identity or provider posture is incomplete"
+jq -e '.status == "READY"
+  and .checkpoint == "course-0.3.3-p08-production-ready"
+  and .components.build.status == "UP"
+  and .components.database.status == "UP"
+  and .components.vector.status == "UP"
+  and .components.sessions.status == "UP"
+  and .components.indexing.status == "UP"
+  and .components.migration.status == "UP"
+  and .components.generationProvider.status == "DISABLED"
+  and .components.generationProvider.required == false
+  and .components.generationProvider.details.credentialConfigured == false' \
+  "${REPORT_DIR}/operations-readiness.json" >/dev/null || fail "operations readiness contract is incomplete"
 
 if grep -Fq 'alex.private@example.com' "${APP_LOG}" || grep -Fq '123-45-6789' "${APP_LOG}"; then
   fail "application log contains raw PII"
@@ -364,7 +378,7 @@ fi
 
 jq -n \
   --arg status PASS \
-  --arg checkpoint course-0.3.3-p07-qdrant \
+  --arg checkpoint course-0.3.3-p08-production-ready \
   --arg profile local \
   --arg unauthenticatedStatus "${unauthenticated_status}" \
   --arg invalidCredentialStatus "${invalid_status}" \
@@ -374,6 +388,7 @@ jq -n \
   --arg generationFailureStatus "${generation_failure_status}" \
   --slurpfile health "${REPORT_DIR}/deployment-health.json" \
   --slurpfile readiness "${REPORT_DIR}/readiness.json" \
+  --slurpfile operationsReadiness "${REPORT_DIR}/operations-readiness.json" \
   --slurpfile migration "${REPORT_DIR}/migration-progress.json" \
   --slurpfile migrationRerun "${REPORT_DIR}/migration-rerun.json" \
   --slurpfile syncCreate "${REPORT_DIR}/sync-create.json" \
@@ -399,6 +414,7 @@ jq -n \
     generationFailureStatus: $generationFailureStatus,
     deployment: $health[0],
     readiness: $readiness[0],
+    operationsReadiness: $operationsReadiness[0],
     migration: $migration[0],
     migrationRerun: $migrationRerun[0],
     liveDataSync: {

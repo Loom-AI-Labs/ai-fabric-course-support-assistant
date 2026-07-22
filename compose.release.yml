@@ -1,0 +1,42 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.16.1
+    restart: unless-stopped
+    volumes:
+      - course-qdrant:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  support-assistant:
+    build:
+      context: .
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:?Set SOURCE_COMMIT from git rev-parse HEAD}
+        SOURCE_BRANCH: ${SOURCE_BRANCH:-main}
+        BUILD_TIME: ${BUILD_TIME:?Set BUILD_TIME to an ISO-8601 timestamp}
+    restart: unless-stopped
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: operations,qdrant
+      COURSE_RELEASE_RUNTIME_MODE: production-keyless
+      COURSE_DB_PATH: /app/data/database/course-support
+      COURSE_OPERATIONS_MAINTENANCE_ENABLED: "true"
+      COURSE_RELEASE_PROBES_ENABLED: "true"
+      AI_PROVIDERS_QDRANT_HOST: qdrant
+      AI_PROVIDERS_QDRANT_PORT: "6333"
+      AI_PROVIDERS_QDRANT_GRPC_PORT: "6334"
+      AI_PROVIDERS_QDRANT_COLLECTION_PREFIX: course_prod08__
+      AI_PROVIDERS_QDRANT_PREFER_GRPC: "false"
+    volumes:
+      - course-app-data:/app/data
+
+volumes:
+  course-app-data:
+  course-qdrant:

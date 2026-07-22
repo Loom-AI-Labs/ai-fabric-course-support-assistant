@@ -1,0 +1,28 @@
+server:
+  shutdown: graceful
+
+spring:
+  datasource:
+    url: jdbc:h2:file:${COURSE_DB_PATH:./data/operations/course-support};MODE=PostgreSQL;AUTO_SERVER=FALSE
+    driver-class-name: org.h2.Driver
+    username: ${COURSE_DB_USER:sa}
+    password: ${COURSE_DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+course:
+  release:
+    runtime-mode: production-keyless
+  operations:
+    maintenance-enabled: ${COURSE_OPERATIONS_MAINTENANCE_ENABLED:true}
+    release-probes-enabled: ${COURSE_RELEASE_PROBES_ENABLED:true}
+    completed-record-retention: ${COURSE_COMPLETED_RECORD_RETENTION:PT168H}
+    conversation-retention: ${COURSE_CONVERSATION_RETENTION:PT168H}
+
+management:
+  endpoint:
+    health:
+      show-details: never

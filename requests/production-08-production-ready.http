@@ -1,0 +1,53 @@
+@baseUrl = http://localhost:8080
+@admin = course-alex-local-token
+
+### Start the production-like stack first:
+### SOURCE_COMMIT=$(git rev-parse HEAD) SOURCE_BRANCH=$(git branch --show-current) \
+### BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+### docker compose -f compose.release.yml up --build
+
+### Public deployment identity and provider posture
+GET {{baseUrl}}/api/demo/health
+
+### Independent readiness for build, stores, work state, and optional generation
+GET {{baseUrl}}/api/demo/operations/readiness
+
+### Seed application-owned source rows
+POST {{baseUrl}}/api/demo/seed
+
+### Start the durable backfill
+POST {{baseUrl}}/api/admin/migrations/knowledge-articles
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{
+  "batchSize": 3,
+  "rateLimit": 0,
+  "reindexExisting": false
+}
+
+### Create an explicitly non-LLM conversation persistence probe
+POST {{baseUrl}}/api/admin/operations/release-probes
+Authorization: Bearer {{admin}}
+
+### Run the deterministic evidence-quality gate
+GET {{baseUrl}}/api/quality/rag/golden
+Authorization: Bearer {{admin}}
+
+### Restart only the application, then call readiness and the returned probe conversation URL.
+### The database, vectors, chat turn, indexing state, and migration state must remain.
+
+### Remove expired operational state without deleting source rows or vector evidence
+POST {{baseUrl}}/api/admin/operations/retention/cleanup
+Authorization: Bearer {{admin}}
+
+### Source and vector counts remain; eligible sessions/work rows are gone
+GET {{baseUrl}}/api/demo/operations/readiness
+
+### Automated exact-commit proof
+### ./scripts/smoke-release.sh
+### jq . target/course-release-evidence/release-keyless-summary.json
+
+### Optional hosted-provider proof; writes NOT_RUN when OPENAI_API_KEY is absent
+### ./scripts/smoke-openai-optional.sh
+### jq . target/course-release-evidence/openai-keyed-summary.json

@@ -53,7 +53,7 @@ class CourseApiTest {
 
         mockMvc.perform(get("/api/demo/readiness"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p07-qdrant"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p08-production-ready"))
             .andExpect(jsonPath("$.sourceRecords.articles").value(9))
             .andExpect(jsonPath("$.indexedVectors").value(0))
             .andExpect(jsonPath("$.capabilities.semanticSearch").value(true))
@@ -100,7 +100,7 @@ class CourseApiTest {
             .andExpect(jsonPath("$.service").value("ai-fabric-course-support-assistant"))
             .andExpect(jsonPath("$.version").isNotEmpty())
             .andExpect(jsonPath("$.aiFabricVersion").value("0.3.3"))
-            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p07-qdrant"))
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p08-production-ready"))
             .andExpect(jsonPath("$.provider.mode").value("deterministic-test"))
             .andExpect(jsonPath("$.provider.orchestration").value("course-orchestration-test"))
             .andExpect(jsonPath("$.provider.orchestrationModel").value("course-test-orchestration"))
@@ -111,6 +111,25 @@ class CourseApiTest {
             .andExpect(jsonPath("$.provider.fallbackEnabled").value(false))
             .andExpect(jsonPath("$.openAiApiKey").doesNotExist())
             .andExpect(jsonPath("$.courseToken").doesNotExist());
+    }
+
+    @Test
+    void operationsReadinessSeparatesRequiredStoresFromProviderCredentials() throws Exception {
+        mockMvc.perform(post("/api/demo/seed")).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/demo/operations/readiness"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.checkpoint").value("course-0.3.3-p08-production-ready"))
+            .andExpect(jsonPath("$.status").value("READY"))
+            .andExpect(jsonPath("$.components.build.status").value("UP"))
+            .andExpect(jsonPath("$.components.database.status").value("UP"))
+            .andExpect(jsonPath("$.components.vector.status").value("UP"))
+            .andExpect(jsonPath("$.components.sessions.status").value("UP"))
+            .andExpect(jsonPath("$.components.indexing.status").value("UP"))
+            .andExpect(jsonPath("$.components.migration.status").value("UP"))
+            .andExpect(jsonPath("$.components.generationProvider.status").value("UP"))
+            .andExpect(jsonPath("$.components.generationProvider.details.credentialConfigured").value(false))
+            .andExpect(jsonPath("$.components.generationProvider.details.apiKey").doesNotExist());
     }
 
     @Test

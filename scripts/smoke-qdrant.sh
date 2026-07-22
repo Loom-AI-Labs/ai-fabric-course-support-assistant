@@ -123,7 +123,7 @@ jq -e '.indexedArticles == 9 and .indexedVectors == 9' \
 
 curl --fail --silent --show-error "${BASE_URL}/api/demo/readiness" \
   >"${REPORT_DIR}/qdrant-readiness.json" || fail "Qdrant readiness failed"
-jq -e '.checkpoint == "course-0.3.3-p07-qdrant"
+jq -e '.checkpoint == "course-0.3.3-p08-production-ready"
   and .indexedVectors == 9
   and .capabilities.managedVectorProfile == true
   and .vectorProvider.provider == "qdrant"
@@ -195,7 +195,7 @@ stop_app
 
 jq -n \
   --arg status PASS \
-  --arg checkpoint course-0.3.3-p07-qdrant \
+  --arg checkpoint course-0.3.3-p08-production-ready \
   --arg image "${QDRANT_IMAGE}" \
   --arg collectionName "${COLLECTION_NAME}" \
   --arg unavailableStatus "${unavailable_status}" \
